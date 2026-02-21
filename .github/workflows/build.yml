@@ -47,7 +47,7 @@ jobs:
           path: build/libs/*.jar
 
       - name: Generate Changelog
-        uses: orhun/git-cliff-action@v3
+        uses: orhun/git-cliff-action@v4
         id: git-cliff
         with:
           config: cliff.toml
