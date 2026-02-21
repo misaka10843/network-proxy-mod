@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "networkproxy",
+  "version": "${version}",
+  "name": "networkproxy",
+  "description": "This is an example description! Tell everyone what your mod is about!",
+  "authors": [
+    "misaka10843"
+  ],
+  "contact": {
+    "homepage": "https://misaka.sakurakoi.top/",
+    "sources": "https://github.com/msiaka10843/network-proxy-mod"
+  },
+  "license": "MIT",
+  "icon": "assets/networkproxy/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.misaka10843.networkproxy.NetworkProxyClient"
+    ],
+    "modmenu": [
+      "com.misaka10843.networkproxy.integration.ModMenuIntegration"
+    ]
+  },
+  "mixins": [
+    "networkproxy.mixins.json",
+    {
+      "config": "networkproxy.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "another-mod": "*"
+  }
+}

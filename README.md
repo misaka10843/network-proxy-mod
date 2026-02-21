@@ -1,0 +1,1 @@
+A Minecraft mod with support for HTTP/SOCKS5 proxies and per-server proxy configuration.

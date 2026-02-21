@@ -1,0 +1,16 @@
+{
+  "modmenu.descriptionTranslation.networkproxy": "A Minecraft mod with support for HTTP/SOCKS5 proxies and per-server proxy configuration.",
+  "config.networkproxy.title": "Network Proxy Settings",
+  "config.networkproxy.category.general": "General",
+  "config.networkproxy.enabled": "Enable Proxy",
+  "config.networkproxy.use_filter": "Use Domain Filter",
+  "config.networkproxy.use_filter.tooltip": "If enabled, only servers in the list below will use the proxy.",
+  "config.networkproxy.domain_list": "Proxy Domain List",
+  "config.networkproxy.domain_list.tooltip": "Example: hypixel.net (Changes take effect on next connection)",
+  "config.networkproxy.type": "Proxy Type",
+  "config.networkproxy.host": "Proxy Host",
+  "config.networkproxy.host.tooltip": "IP address or domain name",
+  "config.networkproxy.port": "Proxy Port",
+  "config.networkproxy.username": "Username (Optional)",
+  "config.networkproxy.password": "Password (Optional)"
+}

@@ -1,0 +1,16 @@
+{
+  "modmenu.descriptionTranslation.networkproxy": "支持http/sock5代理并支持指定服务器代理的mod",
+  "config.networkproxy.title": "网络代理设置",
+  "config.networkproxy.category.general": "常规设置",
+  "config.networkproxy.enabled": "启用代理",
+  "config.networkproxy.use_filter": "启用域名过滤",
+  "config.networkproxy.use_filter.tooltip": "如果启用，只有下方列表中的服务器才会走代理。",
+  "config.networkproxy.domain_list": "代理域名白名单",
+  "config.networkproxy.domain_list.tooltip": "例如：hypixel.net (修改后下次连接生效)",
+  "config.networkproxy.type": "代理类型",
+  "config.networkproxy.host": "代理服务器地址",
+  "config.networkproxy.host.tooltip": "IP 地址或域名",
+  "config.networkproxy.port": "代理端口",
+  "config.networkproxy.username": "用户名 (可选)",
+  "config.networkproxy.password": "密码 (可选)"
+}
