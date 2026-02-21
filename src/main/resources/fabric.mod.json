@@ -3,7 +3,7 @@
   "id": "networkproxy",
   "version": "${version}",
   "name": "networkproxy",
-  "description": "This is an example description! Tell everyone what your mod is about!",
+  "description": "A Minecraft mod with support for HTTP/SOCKS5 proxies and per-server proxy configuration.",
   "authors": [
     "misaka10843"
   ],
@@ -33,7 +33,9 @@
     "fabricloader": ">=0.18.4",
     "minecraft": "~1.21.11",
     "java": ">=21",
-    "fabric-api": "*"
+    "fabric-api": "*",
+    "modmenu": ">=16.0.0",
+    "cloth-config": ">=21.11.153"
   },
   "suggests": {
     "another-mod": "*"
