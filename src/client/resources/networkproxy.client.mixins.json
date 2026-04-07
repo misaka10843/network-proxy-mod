@@ -1,9 +1,9 @@
 {
   "required": true,
   "package": "com.misaka10843.networkproxy.mixin.client",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "client": [
-    "MixinClientConnection"
+    "MixinConnection"
   ],
   "injectors": {
     "defaultRequire": 1
