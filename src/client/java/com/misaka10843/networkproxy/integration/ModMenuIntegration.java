@@ -8,7 +8,7 @@ import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
@@ -20,7 +20,7 @@ public class ModMenuIntegration implements ModMenuApi {
 
             ConfigBuilder builder = ConfigBuilder.create()
                     .setParentScreen(parent)
-                    .setTitle(Text.translatable("config.networkproxy.title"));
+                    .setTitle(Component.translatable("config.networkproxy.title"));
 
             builder.setSavingRunnable(() -> {
                 AutoConfig.getConfigHolder(ProxyConfig.class).save();
@@ -28,49 +28,49 @@ public class ModMenuIntegration implements ModMenuApi {
 
             ConfigEntryBuilder entryBuilder = builder.entryBuilder();
 
-            ConfigCategory general = builder.getOrCreateCategory(Text.translatable("config.networkproxy.category.general"));
+            ConfigCategory general = builder.getOrCreateCategory(Component.translatable("config.networkproxy.category.general"));
 
-            general.addEntry(entryBuilder.startBooleanToggle(Text.translatable("config.networkproxy.enabled"), config.enabled)
+            general.addEntry(entryBuilder.startBooleanToggle(Component.translatable("config.networkproxy.enabled"), config.enabled)
                     .setDefaultValue(false)
                     .setSaveConsumer(newValue -> config.enabled = newValue)
                     .build());
 
-            general.addEntry(entryBuilder.startBooleanToggle(Text.translatable("config.networkproxy.use_filter"), config.useFilter)
+            general.addEntry(entryBuilder.startBooleanToggle(Component.translatable("config.networkproxy.use_filter"), config.useFilter)
                     .setDefaultValue(false)
-                    .setTooltip(Text.translatable("config.networkproxy.use_filter.tooltip"))
+                    .setTooltip(Component.translatable("config.networkproxy.use_filter.tooltip"))
                     .setSaveConsumer(newValue -> config.useFilter = newValue)
                     .build());
 
-            general.addEntry(entryBuilder.startStrList(Text.translatable("config.networkproxy.domain_list"), config.proxyDomains)
+            general.addEntry(entryBuilder.startStrList(Component.translatable("config.networkproxy.domain_list"), config.proxyDomains)
                     .setDefaultValue(List.of("hypixel.net"))
-                    .setTooltip(Text.translatable("config.networkproxy.domain_list.tooltip"))
+                    .setTooltip(Component.translatable("config.networkproxy.domain_list.tooltip"))
                     .setSaveConsumer(newValue -> config.proxyDomains = newValue)
                     .build());
 
-            general.addEntry(entryBuilder.startEnumSelector(Text.translatable("config.networkproxy.type"), ProxyConfig.ProxyType.class, config.type)
+            general.addEntry(entryBuilder.startEnumSelector(Component.translatable("config.networkproxy.type"), ProxyConfig.ProxyType.class, config.type)
                     .setDefaultValue(ProxyConfig.ProxyType.SOCKS5)
-                    .setEnumNameProvider(e -> Text.literal(e.name()))
+                    .setEnumNameProvider(e -> Component.literal(e.name()))
                     .setSaveConsumer(newValue -> config.type = newValue)
                     .build());
 
-            general.addEntry(entryBuilder.startStrField(Text.translatable("config.networkproxy.host"), config.host)
+            general.addEntry(entryBuilder.startStrField(Component.translatable("config.networkproxy.host"), config.host)
                     .setDefaultValue("127.0.0.1")
-                    .setTooltip(Text.translatable("config.networkproxy.host.tooltip"))
+                    .setTooltip(Component.translatable("config.networkproxy.host.tooltip"))
                     .setSaveConsumer(newValue -> config.host = newValue)
                     .build());
 
-            general.addEntry(entryBuilder.startIntField(Text.translatable("config.networkproxy.port"), config.port)
+            general.addEntry(entryBuilder.startIntField(Component.translatable("config.networkproxy.port"), config.port)
                     .setDefaultValue(7890)
                     .setMin(0).setMax(65535)
                     .setSaveConsumer(newValue -> config.port = newValue)
                     .build());
 
-            general.addEntry(entryBuilder.startStrField(Text.translatable("config.networkproxy.username"), config.username)
+            general.addEntry(entryBuilder.startStrField(Component.translatable("config.networkproxy.username"), config.username)
                     .setDefaultValue("")
                     .setSaveConsumer(newValue -> config.username = newValue)
                     .build());
 
-            general.addEntry(entryBuilder.startStrField(Text.translatable("config.networkproxy.password"), config.password)
+            general.addEntry(entryBuilder.startStrField(Component.translatable("config.networkproxy.password"), config.password)
                     .setDefaultValue("")
                     .setSaveConsumer(newValue -> config.password = newValue)
                     .build());
