@@ -8,7 +8,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.proxy.HttpProxyHandler;
 import io.netty.handler.proxy.Socks5ProxyHandler;
-import net.minecraft.network.Connection;
+import net.minecraft.network.ClientConnection;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -17,9 +17,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
-@Mixin(Connection.class)
-public class MixinConnection {
-    @Inject(method = "configurePacketHandler", at = @At("HEAD"))
+@Mixin(ClientConnection.class)
+public class MixinClientConnection {
+    @Inject(method = "addFlowControlHandler", at = @At("HEAD"))
     private void injectSmartProxyRouter(ChannelPipeline pipeline, CallbackInfo ci) {
 
         pipeline.addFirst("smart_proxy_router", new ChannelOutboundHandlerAdapter() {
