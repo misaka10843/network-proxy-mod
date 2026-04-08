@@ -3,6 +3,7 @@
   "config.networkproxy.title": "Network Proxy Settings",
   "config.networkproxy.category.general": "General",
   "config.networkproxy.enabled": "Enable Proxy",
+  "config.networkproxy.use_for_downloads": "Use proxy for web downloads (like resourcepacks)",
   "config.networkproxy.use_filter": "Use Domain Filter",
   "config.networkproxy.use_filter.tooltip": "If enabled, only servers in the list below will use the proxy.",
   "config.networkproxy.domain_list": "Proxy Domain List",

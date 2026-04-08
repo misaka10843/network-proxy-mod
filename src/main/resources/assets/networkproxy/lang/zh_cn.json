@@ -3,6 +3,7 @@
   "config.networkproxy.title": "网络代理设置",
   "config.networkproxy.category.general": "常规设置",
   "config.networkproxy.enabled": "启用代理",
+  "config.networkproxy.use_for_downloads": "用代理下载资源包",
   "config.networkproxy.use_filter": "启用域名过滤",
   "config.networkproxy.use_filter.tooltip": "如果启用，只有下方列表中的服务器才会走代理。",
   "config.networkproxy.domain_list": "代理域名白名单",
