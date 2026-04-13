@@ -3,7 +3,8 @@
   "package": "com.misaka10843.networkproxy.mixin.client",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "MixinConnection"
+    "MixinConnection",
+    "HttpUtilMixin"
   ],
   "injectors": {
     "defaultRequire": 1

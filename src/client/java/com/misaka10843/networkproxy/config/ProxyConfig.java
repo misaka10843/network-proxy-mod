@@ -9,7 +9,7 @@ import java.util.List;
 @Config(name = "networkproxy")
 public class ProxyConfig implements ConfigData {
     public boolean enabled = false;
-
+    public boolean useForDownloads = false;
     public boolean useFilter = false;
 
     public List<String> proxyDomains = new ArrayList<>();
