@@ -38,7 +38,14 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build
-        run: ./gradlew build
+        run: ./gradlew clean build -Pmod_version=${{ inputs.version }}
+
+      - name: Verify packaged mixins
+        run: |
+          JAR=$(find build/libs -maxdepth 1 -type f -name "*.jar" ! -name "*-sources.jar" | head -n 1)
+          echo "Checking $JAR"
+          jar tf "$JAR" | grep -q "com/misaka10843/networkproxy/mixin/client/HttpUtilMixin.class"
+          jar tf "$JAR" | grep -q "networkproxy.client.mixins.json"
 
       - name: Capture build artifacts
         uses: actions/upload-artifact@v4
