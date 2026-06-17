@@ -35,6 +35,12 @@ public class ModMenuIntegration implements ModMenuApi {
                     .setSaveConsumer(newValue -> config.enabled = newValue)
                     .build());
 
+            general.addEntry(entryBuilder.startBooleanToggle(Text.translatable("config.networkproxy.use_for_downloads"), config.useForDownloads)
+                    .setDefaultValue(false)
+                    .setTooltip(Text.translatable("config.networkproxy.use_for_downloads.tooltip"))
+                    .setSaveConsumer(newValue -> config.useForDownloads = newValue)
+                    .build());
+
             general.addEntry(entryBuilder.startBooleanToggle(Text.translatable("config.networkproxy.use_filter"), config.useFilter)
                     .setDefaultValue(false)
                     .setTooltip(Text.translatable("config.networkproxy.use_filter.tooltip"))
