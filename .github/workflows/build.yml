@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., 1.0.0)'
+        description: 'Release version (e.g., 1.2.0-1.21)'
         required: true
         type: string
       is_prerelease:
@@ -42,10 +42,23 @@ jobs:
 
       - name: Verify packaged mixins
         run: |
-          JAR=$(find build/libs -maxdepth 1 -type f -name "*.jar" ! -name "*-sources.jar" | head -n 1)
+          set -euo pipefail
+          JAR=$(find build/libs -maxdepth 1 -type f -name "*.jar" ! -name "*-sources.jar" ! -name "*-dev.jar" | head -n 1)
+          if [ -z "$JAR" ]; then
+            echo "No release jar found in build/libs"
+            ls -lah build/libs || true
+            exit 1
+          fi
+
           echo "Checking $JAR"
-          jar tf "$JAR" | grep -q "com/misaka10843/networkproxy/mixin/client/HttpUtilMixin.class"
+          echo "Available jars:"
+          ls -lah build/libs
+          echo "Packaged client mixin classes:"
+          jar tf "$JAR" | grep "com/misaka10843/networkproxy/mixin/client" || true
+
           jar tf "$JAR" | grep -q "networkproxy.client.mixins.json"
+          jar tf "$JAR" | grep -q "com/misaka10843/networkproxy/mixin/client/MixinClientConnection.class"
+          jar tf "$JAR" | grep -q "com/misaka10843/networkproxy/mixin/client/HttpUtilMixin.class"
 
       - name: Capture build artifacts
         uses: actions/upload-artifact@v4
