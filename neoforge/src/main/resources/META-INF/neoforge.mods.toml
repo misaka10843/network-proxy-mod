@@ -1,0 +1,27 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "MIT"
+
+[[mods]]
+modId = "networkproxy"
+version = "${version}"
+displayName = "Network Proxy"
+description = '''A Minecraft mod with support for HTTP/SOCKS5 proxies and per-server proxy configuration.'''
+authors = ["misaka10843"]
+
+[[dependencies.networkproxy]]
+    modId = "neoforge"
+    type = "required"
+    versionRange = "[26.2,)"
+    ordering = "NONE"
+    side = "CLIENT"
+
+[[dependencies.networkproxy]]
+    modId = "minecraft"
+    type = "required"
+    versionRange = "[26.2,)"
+    ordering = "NONE"
+    side = "CLIENT"
+
+[[mixins]]
+    config = "networkproxy.common.mixins.json"

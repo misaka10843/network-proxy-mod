@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "networkproxy",
+  "version": "${version}",
+  "name": "Network Proxy",
+  "description": "A Minecraft mod with support for HTTP/SOCKS5 proxies and per-server proxy configuration.",
+  "authors": [
+    "misaka10843"
+  ],
+  "contact": {
+    "homepage": "https://misaka.sakurakoi.top/",
+    "sources": "https://github.com/msiaka10843/network-proxy-mod"
+  },
+  "license": "MIT",
+  "icon": "assets/networkproxy/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.misaka10843.networkproxy.fabric.NetworkProxyFabricClient"
+    ]
+  },
+  "mixins": [
+    "networkproxy.common.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "26.x",
+    "java": ">=25"
+  }
+}

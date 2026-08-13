@@ -1,0 +1,68 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name + '-fabric'
+}
+
+// Share the loader-agnostic code and resources with the NeoForge module.
+sourceSets {
+    main {
+        java.srcDir(rootProject.file('common/src/main/java'))
+        resources.srcDir(rootProject.file('common/src/main/resources'))
+    }
+}
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+    mavenCentral()
+    maven { url = 'https://maven.aliyun.com/nexus/content/groups/public' }
+}
+
+loom {
+    mods {
+        "networkproxy" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+    // Minecraft 26.2 bundles Netty 4.2 core modules but NOT the proxy handlers,
+    // so we ship them jar-in-jar (same version family as the bundled Netty).
+    implementation "io.netty:netty-handler-proxy:${project.netty_version}"
+    include "io.netty:netty-handler-proxy:${project.netty_version}"
+    implementation "io.netty:netty-codec-socks:${project.netty_version}"
+    include "io.netty:netty-codec-socks:${project.netty_version}"
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 25
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+    inputs.property 'archivesName', project.base.archivesName
+    from('LICENSE') {
+        rename { "${it}_${inputs.properties.archivesName}" }
+    }
+}

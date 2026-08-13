@@ -1,10 +1,13 @@
 pluginManagement {
     repositories {
-        maven {
-            name = 'Fabric'
-            url = 'https://repository.hanbings.io/proxy'
-        }
-        mavenCentral()
         gradlePluginPortal()
+        maven { name = 'Fabric'; url = 'https://maven.fabricmc.net/' }
+        maven { name = 'NeoForged'; url = 'https://maven.neoforged.net/releases/' }
+        maven { name = 'Sponge Snapshots'; url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        mavenCentral()
     }
 }
+
+rootProject.name = 'network-proxy-mod'
+
+include 'fabric', 'neoforge'

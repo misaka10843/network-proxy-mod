@@ -1,0 +1,15 @@
+{
+  "config.networkproxy.title": "Network Proxy Settings",
+  "config.networkproxy.enabled": "Enable Proxy",
+  "config.networkproxy.use_for_downloads": "Use proxy for web downloads (like resourcepacks)",
+  "config.networkproxy.use_filter": "Use Domain Filter",
+  "config.networkproxy.use_filter.tooltip": "If enabled, only servers in the list below will use the proxy.",
+  "config.networkproxy.domain_list": "Proxy Domain List",
+  "config.networkproxy.domain_list.tooltip": "Comma-separated domains, e.g. hypixel.net (takes effect on next connection)",
+  "config.networkproxy.type": "Proxy Type",
+  "config.networkproxy.host": "Proxy Host",
+  "config.networkproxy.host.tooltip": "IP address or domain name",
+  "config.networkproxy.port": "Proxy Port",
+  "config.networkproxy.username": "Username (Optional)",
+  "config.networkproxy.password": "Password (Optional)"
+}
