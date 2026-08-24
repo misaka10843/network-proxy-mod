@@ -39,6 +39,14 @@ neoForge {
             server()
         }
     }
+
+    // Registers the developed mod for dev runs; without this the mod is not
+    // loaded by FML when using runClient/runServer.
+    mods {
+        networkproxy {
+            sourceSet sourceSets.main
+        }
+    }
 }
 
 dependencies {

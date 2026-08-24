@@ -1,5 +1,6 @@
 {
   "config.networkproxy.title": "Network Proxy Settings",
+  "config.networkproxy.button": "Proxy Settings…",
   "config.networkproxy.enabled": "Enable Proxy",
   "config.networkproxy.use_for_downloads": "Use proxy for web downloads (like resourcepacks)",
   "config.networkproxy.use_filter": "Use Domain Filter",

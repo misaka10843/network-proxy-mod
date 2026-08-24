@@ -14,8 +14,8 @@ public class NetworkProxyNeoForge {
     public NetworkProxyNeoForge(IEventBus modBus, ModContainer container) {
         modBus.addListener(this::onClientSetup);
 
-        // Native "Config" button in the mods list; the pause-menu button (mixin)
-        // is the other, loader-independent entry point.
+        // Native "Config" button in the mods list; the multiplayer-screen button
+        // (mixin) is the other, loader-independent entry point.
         container.registerExtensionPoint(IConfigScreenFactory.class,
                 (modContainer, screen) -> new ProxyConfigScreen(screen));
     }

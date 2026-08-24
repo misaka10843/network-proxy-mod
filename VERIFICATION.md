@@ -1,6 +1,7 @@
 # Verification Record — 26.2 Port + Fabric/NeoForge Multi-Loader + Self-Hosted UI
 
 Date: 2026-08-13 (UTC+8) · Branch: 26.1.x · JDK: Zulu 25.0.4 (`D:\PL\.jdks\azul-25.0.4`)
+Runtime-fix follow-up: 2026-08-18 (see §14).
 
 ## 1. 26.2 baseline (Fabric) — COMPLETE, compile-verified
 
@@ -22,10 +23,12 @@ Date: 2026-08-13 (UTC+8) · Branch: 26.1.x · JDK: Zulu 25.0.4 (`D:\PL\.jdks\azu
 
 Conclusion: both original mixins port to 26.2 unchanged at the bytecode level.
 
-## 3. GUI/API surface vs. 26.2 — COMPLETE
+## 3. GUI/API surface vs. 26.2 — COMPLETE (bytecode) / one runtime bug found 2026-08-18
 
 - `Component.translatable/literal` ✅ (only vanilla UI API the mod used).
-- 26.2 GUI rework does not affect this mod (it never touched `Minecraft#screen`/`ChatFormatting`).
+- 26.2 GUI rework does not affect the mod's proxy logic. **However** the
+  pause-menu button mixin DID fail at runtime on both loaders — not because of
+  the GUI rework, but because of Mixin 0.8.7's `@Shadow` resolution (see §14).
 
 ## 4–8. Multi-loader restructure — COMPLETE (both jars build)
 
@@ -54,8 +57,8 @@ Conclusion: both original mixins port to 26.2 unchanged at the bytecode level.
   (26.2 API: `CycleButton.builder(fn, initial)`, `onOffBuilder`, `EditBox(Font,x,y,w,h,msg)`,
   labels drawn via `GuiGraphicsExtractor.text(Font,Component,x,y,color,shadow)`
   — `GuiGraphics` no longer exists in 26.2).
-- Entries: pause-menu button (`PauseScreenMixin`, @Shadow `addRenderableWidget`) on both
-  loaders + NeoForge native config button via `IConfigScreenFactory` extension point
+- Entries: pause-menu button (`ScreenConfigButtonMixin`, targets `Screen` — see §14)
+  on both loaders + NeoForge native config button via `IConfigScreenFactory` extension point
   (`ModContainer.registerExtensionPoint`; note: `RegisterClientExtensionsEvent` moved to
   `net.neoforged.neoforge.client.extensions.common` in 26.2 and no longer handles screens).
 - `HttpUtilMixin` rewritten from MixinExtras `@Local` to plain Mixin `@Redirect` →
@@ -70,15 +73,18 @@ Conclusion: both original mixins port to 26.2 unchanged at the bytecode level.
 - `en_us.json` + `zh_cn.json` kept (dropped the ModMenu-only description key).
 - CI workflow updated to upload `fabric/build/libs/*.jar` + `neoforge/build/libs/*.jar`.
 
-## 13. Remaining runtime verification (needs a real game launch — user step)
+## 13. Runtime verification — startup verified 2026-08-18, functional paths still user-step
 
-Compile-time and bytecode checks above give high confidence, but these still need a
-real client launch (headless verification is not possible here):
+Startup has now been verified on real client launches (runClient with the local
+JDKs; assets downloaded once to `D:\PL.gradle\caches\neoformruntime\assets`):
 
-- [ ] Fabric: `./gradlew :fabric:runClient` — mixins apply, pause-menu button opens UI,
-      HTTP proxy to a server works, SOCKS5 works, domain filter works, resource-pack
-      download through proxy works, proxy auth works.
-- [ ] NeoForge: `./gradlew :neoforge:runClient` — same four paths + mods-list "Config" button.
+- [x] Fabric `runClient`: mod list contains `networkproxy 2.0.0`, log shows
+      `NetworkProxy initialized`, **no mixin error**, game reaches main menu.
+- [x] NeoForge `runClient`: mod list contains `Network Proxy 2.0.0 (networkproxy)`
+      (requires the `mods` block, see §14), **no mixin error**, game passes
+      `Minecraft.<init>` and reaches main menu.
+- [ ] HTTP proxy to a server works, SOCKS5 works, domain filter works,
+      resource-pack download through proxy works, proxy auth works (interactive).
 - [ ] Config round-trip: edit → Done → `config/networkproxy.json` written and reloaded.
 - [ ] Upgrade path: place an old AutoConfig `config/networkproxy.json` and confirm it loads.
 
@@ -93,3 +99,58 @@ real client launch (headless verification is not possible here):
    `CycleButton.builder`, `EditBox` constructors, `Minecraft#setScreenAndShow`.
 5. Check NeoForge API drift: `IConfigScreenFactory` extension point, `RegisterClientExtensionsEvent` package.
 6. Run both clients, re-verify the four proxy paths.
+
+## 14. Runtime fixes (2026-08-18) �� two bugs found by actually launching the clients
+
+### 14.1 `@Shadow` of an inherited method fails �� mixin retargeted to `Screen`
+
+- Symptom (both loaders, Mixin 0.8.7): `InvalidMixinException: @Shadow method
+  addRenderableWidget(...) was not located in the target class
+  net.minecraft.client.gui.screens.PauseScreen. No refMap loaded.`
+- Root cause: Mixin 0.8.7 resolves `@Shadow` **only against members declared in
+  the target class itself** (see `TargetClassContext.findMethod` /
+  `findAliasedMethod` �� they iterate `classNode.methods` and never walk the
+  superclass chain). `addRenderableWidget`/`removeWidget` are declared in
+  `Screen`, not in `PauseScreen`, so a `@Mixin(PauseScreen.class)` shadow can
+  never resolve. It is unrelated to generics (raw-typed shadow failed identically).
+- Fix: `PauseScreenMixin` �� `ScreenConfigButtonMixin`, targets `@Mixin(Screen.class)`
+  (where the methods are declared), `@Inject` at `init(II)V` TAIL (runs after
+  `PauseScreen.init()` on every `Gui.setScreen` call) and `rebuildWidgets` TAIL
+  (covers window resize), guarded by `instanceof PauseScreen`, with a `@Unique`
+  button field + `@Shadow removeWidget` to keep exactly one button.
+- Verified: Fabric and NeoForge `runClient` both apply the mixin with no error.
+
+### 14.2 NeoForge dev run did not load the mod �� missing `mods` block
+
+- Symptom: `Mod List` in `runClient` showed only `minecraft` + `neoforge`; the
+  mod's classes/mixins were never loaded, so NeoForge runs gave a false "no
+  error" result.
+- Fix: added `mods { networkproxy { sourceSet sourceSets.main } }` to
+  `neoForge/build.gradle` (ModDevGradle requires this to put the developed mod
+  on the dev-run classpath; FML logs `InDevFolderLocator ... from env` once set).
+- Verified: `Mod List` now shows `Network Proxy 2.0.0 (networkproxy)`.
+
+### 14.3 Local toolchain �� Java 21 needed by ModDevGradle asset download
+
+- `:neoforge:downloadAssets` runs with a Java 21 toolchain; only Java 25 was
+  registered. Added `D:/PL/.jdks/ms-21.0.12` to
+  `org.gradle.java.installations.paths` (note: **comma**-separated, not `;`).
+
+### 14.4 Config entry point moved from pause menu to the multiplayer screen
+
+- Design decision (2026-08-18): a proxy is configured before connecting to a
+  server, so the in-game config button belongs on the Join Multiplayer screen,
+  not the pause menu. This is also the only loader-independent entry point for
+  Fabric (which has no native mod-settings screen like NeoForge's
+  IConfigScreenFactory "Config" button in the mods list).
+- Change: ScreenConfigButtonMixin still targets @Mixin(Screen.class) (the
+  @Shadow of addRenderableWidget/removeWidget must resolve against the class
+  that declares them), but the guard is now instanceof JoinMultiplayerScreen.
+  The button renders top-right at (width - 105, 8, 100, 20) with label key
+  config.networkproxy.button (added to en_us.json + zh_cn.json).
+- Compile-verified: :fabric:compileJava and :neoforge:compileJava both succeed.
+  The @Shadow/@Mixin target are unchanged from 14.1, so the mixin still applies
+  with no error; the instanceof change is a runtime check and cannot introduce
+  an apply-time failure.
+- Still needs a real client launch to confirm the button is visible and the
+  config round-trips (see section 13).
