@@ -1,0 +1,15 @@
+plugins { id 'net.neoforged.moddev' }
+neoForge {
+    enable {
+        version = rootProject.neoforge_version
+        // Avoid the 26.3 source transformation failure in the recompilation pipeline.
+        disableRecompilation = true
+    }
+    runs { client { client() } }
+    mods { networkproxy { sourceSet sourceSets.main } }
+}
+dependencies {
+    implementation "me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_version}"
+    jarJar(implementation("io.netty:netty-handler-proxy:${rootProject.netty_version}")) { version { strictly '[4.2.16.Final,4.3)'; prefer rootProject.netty_version } }
+    jarJar(implementation("io.netty:netty-codec-socks:${rootProject.netty_version}")) { version { strictly '[4.2.16.Final,4.3)'; prefer rootProject.netty_version } }
+}

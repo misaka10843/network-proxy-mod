@@ -1,0 +1,34 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+
+[[mods]]
+modId="networkproxy"
+version="${version}"
+displayName="Network Proxy"
+authors="misaka10843"
+description='''HTTP and SOCKS5 proxy support for Minecraft clients.'''
+
+[[mixins]]
+config="networkproxy.client.mixins.json"
+
+[[dependencies.networkproxy]]
+modId="neoforge"
+type="required"
+versionRange="[26.3,)"
+ordering="NONE"
+side="CLIENT"
+
+[[dependencies.networkproxy]]
+modId="minecraft"
+type="required"
+versionRange="[26.3,26.4)"
+ordering="NONE"
+side="CLIENT"
+
+[[dependencies.networkproxy]]
+modId="cloth_config"
+type="required"
+versionRange="[26.3.159,)"
+ordering="AFTER"
+side="CLIENT"

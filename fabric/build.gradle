@@ -1,0 +1,24 @@
+plugins { id 'net.fabricmc.fabric-loom' }
+
+// Loom does not generate IDE run configurations for subprojects by default.
+loom {
+    runs {
+        client {
+            generateRunConfig = true
+            preferGradleTask = true
+            displayName = 'Fabric Client'
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+    implementation "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_version}"
+    compileOnly "com.terraformersmc:modmenu:${rootProject.modmenu_version}"
+    localRuntime "com.terraformersmc:modmenu:${rootProject.modmenu_version}"
+    implementation "io.netty:netty-handler-proxy:${rootProject.netty_version}"
+    include "io.netty:netty-handler-proxy:${rootProject.netty_version}"
+    implementation "io.netty:netty-codec-socks:${rootProject.netty_version}"
+    include "io.netty:netty-codec-socks:${rootProject.netty_version}"
+}
