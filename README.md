@@ -2,6 +2,8 @@
 
 A client-side Minecraft mod for routing server connections through HTTP or SOCKS5 proxies, with optional domain filtering and resource-pack download proxying.
 
+Turn on **SOCKS5 Remote DNS** in Network Proxy Settings to let the proxy resolve multiplayer server names for joins and server-list pings. The setting defaults to off and applies when the server uses the SOCKS5 proxy. With this setting enabled, Minecraft skips local DNS and SRV lookups for those addresses. For an SRV-only server, enter the target hostname and port advertised by its SRV record.
+
 The repository targets Minecraft 26.3 and builds separate Fabric and NeoForge jars from shared code. Java 25 is required.
 
 - Fabric: install Fabric Loader, Cloth Config and optionally Mod Menu to access the configuration screen.

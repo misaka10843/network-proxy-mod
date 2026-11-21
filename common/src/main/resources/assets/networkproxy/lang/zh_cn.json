@@ -9,6 +9,8 @@
   "config.networkproxy.domain_list": "代理域名白名单",
   "config.networkproxy.domain_list.tooltip": "例如：hypixel.net (修改后下次连接生效)",
   "config.networkproxy.type": "代理类型",
+  "config.networkproxy.socks5_remote_dns": "SOCKS5 远程 DNS",
+  "config.networkproxy.socks5_remote_dns.tooltip": "由 SOCKS5 代理解析多人游戏服务器域名。Minecraft 会跳过这些服务器的本地 DNS 和 SRV 查询。",
   "config.networkproxy.host": "代理服务器地址",
   "config.networkproxy.host.tooltip": "IP 地址或域名",
   "config.networkproxy.port": "代理端口",

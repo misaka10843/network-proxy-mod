@@ -9,6 +9,8 @@
   "config.networkproxy.domain_list": "Proxy Domain List",
   "config.networkproxy.domain_list.tooltip": "Example: hypixel.net (Changes take effect on next connection)",
   "config.networkproxy.type": "Proxy Type",
+  "config.networkproxy.socks5_remote_dns": "SOCKS5 Remote DNS",
+  "config.networkproxy.socks5_remote_dns.tooltip": "Let SOCKS5 resolve multiplayer server names. Minecraft skips its local DNS and SRV lookups for these servers.",
   "config.networkproxy.host": "Proxy Host",
   "config.networkproxy.host.tooltip": "IP address or domain name",
   "config.networkproxy.port": "Proxy Port",

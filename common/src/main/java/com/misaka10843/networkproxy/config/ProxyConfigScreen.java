@@ -55,6 +55,12 @@ public class ProxyConfigScreen {
                     .setSaveConsumer(newValue -> config.type = newValue)
                     .build());
 
+            general.addEntry(entryBuilder.startBooleanToggle(Component.translatable("config.networkproxy.socks5_remote_dns"), config.socks5RemoteDns)
+                    .setDefaultValue(false)
+                    .setTooltip(Component.translatable("config.networkproxy.socks5_remote_dns.tooltip"))
+                    .setSaveConsumer(newValue -> config.socks5RemoteDns = newValue)
+                    .build());
+
             general.addEntry(entryBuilder.startStrField(Component.translatable("config.networkproxy.host"), config.host)
                     .setDefaultValue("127.0.0.1")
                     .setTooltip(Component.translatable("config.networkproxy.host.tooltip"))
