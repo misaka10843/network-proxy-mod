@@ -13,20 +13,25 @@ subprojects {
     sourceSets.main.java.srcDir rootProject.file('common/src/main/java')
     sourceSets.main.resources.srcDir rootProject.file('common/src/main/resources')
     sourceSets {
-        authTest {
+        regressionTest {
             java.srcDir rootProject.file('common/src/test/java')
             compileClasspath += sourceSets.main.output + configurations.compileClasspath
             runtimeClasspath += sourceSets.main.runtimeClasspath
         }
     }
-    def authTest = tasks.register('testDownloadAuthentication', JavaExec) {
-        classpath = sourceSets.authTest.runtimeClasspath
-        mainClass = 'com.misaka10843.networkproxy.DownloadAuthenticationTest'
-        javaLauncher = javaToolchains.launcherFor(java.toolchain)
-        workingDir = layout.buildDirectory.dir('tmp/testDownloadAuthentication').get().asFile
-        doFirst { workingDir.mkdirs() }
+    [
+        testDownloadAuthentication: 'DownloadAuthenticationTest',
+        testProxyHostnameResolution: 'ProxyHostnameResolutionTest'
+    ].each { taskName, testClass ->
+        def regression = tasks.register(taskName, JavaExec) {
+            classpath = sourceSets.regressionTest.runtimeClasspath
+            mainClass = "com.misaka10843.networkproxy.${testClass}"
+            javaLauncher = javaToolchains.launcherFor(java.toolchain)
+            workingDir = layout.buildDirectory.dir("tmp/${taskName}").get().asFile
+            doFirst { workingDir.mkdirs() }
+        }
+        tasks.named('check') { dependsOn(regression) }
     }
-    tasks.named('check') { dependsOn(authTest) }
     repositories {
         mavenCentral()
         maven { url = 'https://maven.shedaniel.me/' }

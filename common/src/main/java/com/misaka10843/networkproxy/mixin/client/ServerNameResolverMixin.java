@@ -24,8 +24,8 @@ public class ServerNameResolverMixin {
     @Shadow @Final private AddressCheck addressCheck;
 
     @Inject(method = "resolveAddress", at = @At("HEAD"), cancellable = true)
-    private void deferSocks5Resolution(ServerAddress address,
-                                       CallbackInfoReturnable<Optional<ResolvedServerAddress>> cir) {
+    private void deferProxyResolution(ServerAddress address,
+                                      CallbackInfoReturnable<Optional<ResolvedServerAddress>> cir) {
         String host = address.getHost();
         ProxySettings settings = NetworkProxyClient.getConfig().forServer(host, address.getPort());
         if (settings == null || !settings.usesRemoteDns()) {

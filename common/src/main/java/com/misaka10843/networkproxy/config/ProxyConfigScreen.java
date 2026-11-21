@@ -164,9 +164,9 @@ public final class ProxyConfigScreen extends Screen {
         category.addEntry(fields.startEnumSelector(label("type"), ProxyConfig.ProxyType.class, settings.type)
                 .setDefaultValue(ProxyConfig.ProxyType.SOCKS5).setEnumNameProvider(type -> Component.literal(type.name()))
                 .setSaveConsumer(value -> settings.type = value).build());
-        category.addEntry(fields.startBooleanToggle(label("socks5_remote_dns"), settings.socks5RemoteDns)
-                .setDefaultValue(false).setTooltip(label("socks5_remote_dns.tooltip"))
-                .setSaveConsumer(value -> settings.socks5RemoteDns = value).build());
+        category.addEntry(fields.startBooleanToggle(label("resolve_hostnames_through_proxy"), settings.usesRemoteDns())
+                .setDefaultValue(false).setTooltip(label("resolve_hostnames_through_proxy.tooltip"))
+                .setSaveConsumer(value -> settings.resolveHostnamesThroughProxy = value).build());
         category.addEntry(fields.startStrField(label("host"), settings.host)
                 .setDefaultValue("127.0.0.1").setTooltip(label("host.tooltip"))
                 .setErrorSupplier(value -> ServerProxySettings.normalizeHost(value.strip()).isEmpty()

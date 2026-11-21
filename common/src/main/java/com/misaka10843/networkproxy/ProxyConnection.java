@@ -62,18 +62,28 @@ public final class ProxyConnection {
         return channel.hasAttr(SERVER_SETTINGS);
     }
 
-    public static ChannelFuture connectThroughProxy(Bootstrap bootstrap, InetSocketAddress target,
-                                                    ProxySettings config) {
+    public static InetSocketAddress proxyDestination(InetSocketAddress target, ProxySettings settings,
+                                                     boolean sendHostname) {
         String host = target.getHostString();
-        NetworkProxyClient.LOGGER.info("Routing through proxy to: {}", host);
-
-        InetSocketAddress destination = target;
+        int port = target.getPort();
         if (target.isUnresolved()) {
             InetAddress literal = NetUtil.createInetAddressFromIpAddressString(host);
-            if (literal != null) {
-                destination = new InetSocketAddress(literal, target.getPort());
-            }
+            return literal == null ? target : new InetSocketAddress(literal, port);
         }
+        if (sendHostname) {
+            return NetUtil.isValidIpV4Address(host) || NetUtil.isValidIpV6Address(host)
+                    ? target : InetSocketAddress.createUnresolved(host, port);
+        }
+        if (settings.type == ProxyConfig.ProxyType.HTTP) {
+            // HTTP CONNECT uses getHostString() even for resolved addresses.
+            return InetSocketAddress.createUnresolved(target.getAddress().getHostAddress(), port);
+        }
+        return target;
+    }
+
+    public static ChannelFuture connectThroughProxy(Bootstrap bootstrap, InetSocketAddress target,
+                                                    ProxySettings config) {
+        NetworkProxyClient.LOGGER.info("Routing through proxy to: {}", target.getHostString());
         InetSocketAddress proxyAddress = new InetSocketAddress(config.host, config.port);
         ProxyHandler proxy = createHandler(proxyAddress, config);
         ChannelHandler originalHandler = bootstrap.config().handler();
@@ -85,8 +95,9 @@ public final class ProxyConnection {
             }
         });
 
-        // Netty must pass the destination hostname to the proxy handler without resolving it.
-        return bootstrap.resolver(NoopAddressResolverGroup.INSTANCE).connect(destination);
+        // The proxy handler needs the chosen destination exactly as supplied.
+        return bootstrap.resolver(NoopAddressResolverGroup.INSTANCE)
+                .connect(proxyDestination(target, config, config.usesRemoteDns()));
     }
 
     public static ChannelFuture awaitTunnel(ChannelFuture transport, String handlerName) {
