@@ -12,6 +12,19 @@ subprojects {
     tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.release = 25 }
     sourceSets.main.java.srcDir rootProject.file('common/src/main/java')
     sourceSets.main.resources.srcDir rootProject.file('common/src/main/resources')
+    sourceSets {
+        authTest {
+            java.srcDir rootProject.file('common/src/test/java')
+            compileClasspath += sourceSets.main.output + configurations.compileClasspath
+            runtimeClasspath += sourceSets.main.runtimeClasspath
+        }
+    }
+    def authTest = tasks.register('testDownloadAuthentication', JavaExec) {
+        classpath = sourceSets.authTest.runtimeClasspath
+        mainClass = 'com.misaka10843.networkproxy.DownloadAuthenticationTest'
+        javaLauncher = javaToolchains.launcherFor(java.toolchain)
+    }
+    tasks.named('check') { dependsOn(authTest) }
     repositories {
         mavenCentral()
         maven { url = 'https://maven.shedaniel.me/' }
