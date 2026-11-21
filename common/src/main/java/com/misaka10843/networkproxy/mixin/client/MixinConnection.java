@@ -6,6 +6,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 import com.misaka10843.networkproxy.NetworkProxyClient;
 import com.misaka10843.networkproxy.ProxyConnection;
 import com.misaka10843.networkproxy.config.ProxyConfig;
+import com.misaka10843.networkproxy.config.ProxySettings;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.Channel;
@@ -42,22 +43,30 @@ public class MixinConnection {
             method = "connect",
             at = @At(value = "INVOKE", target = "Lio/netty/bootstrap/Bootstrap;connect(Ljava/net/InetAddress;I)Lio/netty/channel/ChannelFuture;")
     )
-    private static ChannelFuture connectWithDeferredDns(Bootstrap bootstrap, InetAddress address, int port,
+    private static ChannelFuture connectMultiplayer(Bootstrap bootstrap, InetAddress address, int port,
                                                          Operation<ChannelFuture> original,
                                                          @Local(argsOnly = true) InetSocketAddress target) {
-        if (!ProxyConnection.hasDeferredDns()) {
+        if (!ProxyConnection.hasServerSettings()) {
             return original.call(bootstrap, address, port);
         }
-        ProxyConfig config = NetworkProxyClient.getConfig();
-        if (!config.shouldUseSocks5RemoteDns(target.getHostString())) {
-            throw new IllegalStateException("SOCKS5 remote DNS settings changed while connecting");
+
+        ProxySettings settings = ProxyConnection.serverSettings();
+        if (target.isUnresolved()) {
+            if (settings == null || !settings.usesRemoteDns()) {
+                throw new IllegalStateException("SOCKS5 remote DNS settings changed while connecting");
+            }
+            ChannelFuture transport = ProxyConnection.connectThroughProxy(bootstrap, target, settings);
+            return ProxyConnection.awaitTunnel(transport, ProxyConnection.BOOTSTRAP_PROXY_HANDLER);
         }
-        return ProxyConnection.connect(bootstrap, target, config);
+
+        ProxyConnection.setServerSettings(bootstrap);
+        ChannelFuture transport = original.call(bootstrap, address, port);
+        return settings == null ? transport : ProxyConnection.awaitTunnel(transport, "proxy");
     }
 
     @Inject(method = "configurePacketHandler", at = @At("HEAD"))
     private void injectSmartProxyRouter(ChannelPipeline pipeline, CallbackInfo ci) {
-        if (pipeline.get(ProxyConnection.REMOTE_DNS_HANDLER) != null) {
+        if (pipeline.get(ProxyConnection.BOOTSTRAP_PROXY_HANDLER) != null) {
             return;
         }
         pipeline.addFirst("smart_proxy_router", new ChannelOutboundHandlerAdapter() {
@@ -65,16 +74,17 @@ public class MixinConnection {
             public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) throws Exception {
                 SocketAddress destination = remoteAddress;
                 if (remoteAddress instanceof InetSocketAddress targetAddr) {
-                    ProxyConfig config = NetworkProxyClient.getConfig();
-                    if (config.shouldProxy(targetAddr.getHostString())) {
-                        NetworkProxyClient.LOGGER.info("Routing through proxy to: {}", targetAddr.getHostString());
-                        String host = targetAddr.getHostString();
-                        // SOCKS5 otherwise serializes already-resolved addresses as IPs.
-                        if (!NetUtil.isValidIpV4Address(host) && !NetUtil.isValidIpV6Address(host)) {
+                    String host = targetAddr.getHostString();
+                    ProxySettings settings = ProxyConnection.selectSettings(ctx.channel(), host);
+                    if (settings != null) {
+                        NetworkProxyClient.LOGGER.info("Routing through proxy to: {}", host);
+                        boolean sendHostname = settings.type == ProxyConfig.ProxyType.HTTP
+                                || settings.usesRemoteDns() || !ProxyConnection.hasSelectedSettings(ctx.channel());
+                        if (sendHostname && !NetUtil.isValidIpV4Address(host) && !NetUtil.isValidIpV6Address(host)) {
                             destination = InetSocketAddress.createUnresolved(host, targetAddr.getPort());
                         }
-                        InetSocketAddress proxyAddr = new InetSocketAddress(config.host, config.port);
-                        ctx.pipeline().addFirst("proxy", ProxyConnection.createHandler(proxyAddr, config, config.type));
+                        InetSocketAddress proxyAddr = new InetSocketAddress(settings.host, settings.port);
+                        ctx.pipeline().addFirst("proxy", ProxyConnection.createHandler(proxyAddr, settings));
                     }
                 }
 

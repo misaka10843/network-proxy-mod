@@ -2,7 +2,7 @@ package com.misaka10843.networkproxy.mixin.client;
 
 import com.misaka10843.networkproxy.NetworkProxyClient;
 import com.misaka10843.networkproxy.UnresolvedServerAddress;
-import com.misaka10843.networkproxy.config.ProxyConfig;
+import com.misaka10843.networkproxy.config.ProxySettings;
 import io.netty.util.NetUtil;
 import net.minecraft.client.multiplayer.resolver.AddressCheck;
 import net.minecraft.client.multiplayer.resolver.ResolvedServerAddress;
@@ -26,9 +26,9 @@ public class ServerNameResolverMixin {
     @Inject(method = "resolveAddress", at = @At("HEAD"), cancellable = true)
     private void deferSocks5Resolution(ServerAddress address,
                                        CallbackInfoReturnable<Optional<ResolvedServerAddress>> cir) {
-        ProxyConfig config = NetworkProxyClient.getConfig();
         String host = address.getHost();
-        if (!config.shouldUseSocks5RemoteDns(host)) {
+        ProxySettings settings = NetworkProxyClient.getConfig().forServer(host, address.getPort());
+        if (settings == null || !settings.usesRemoteDns()) {
             return;
         }
         if (host.isEmpty() || !addressCheck.isAllowed(address)) {
