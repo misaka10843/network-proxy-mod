@@ -23,6 +23,8 @@ subprojects {
         classpath = sourceSets.authTest.runtimeClasspath
         mainClass = 'com.misaka10843.networkproxy.DownloadAuthenticationTest'
         javaLauncher = javaToolchains.launcherFor(java.toolchain)
+        workingDir = layout.buildDirectory.dir('tmp/testDownloadAuthentication').get().asFile
+        doFirst { workingDir.mkdirs() }
     }
     tasks.named('check') { dependsOn(authTest) }
     repositories {
