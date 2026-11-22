@@ -42,7 +42,7 @@ public class ServerStatusPingerMixin {
         if (settings != null && (!target.isUnresolved() || settings.usesRemoteDns())) {
             return ProxyConnection.connectThroughProxy(bootstrap, target, settings);
         }
-        // Vanilla discards the future. Skip the fallback if SOCKS5 was disabled during the ping.
+        // Vanilla discards the future. Skip the fallback if proxy hostname resolution was disabled during the ping.
         return target.isUnresolved() ? null : original.call(bootstrap, address, port);
     }
 }

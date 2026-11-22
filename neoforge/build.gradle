@@ -16,4 +16,7 @@ dependencies {
     jarJar(implementation("io.netty:netty-codec-socks:${rootProject.netty_version}") { transitive = false }) {
         version { strictly "[${rootProject.netty_version},4.3)"; prefer rootProject.netty_version }
     }
+    rootProject.httpsProxyLibraries.each { library ->
+        jarJar(implementation(library) { transitive = false })
+    }
 }

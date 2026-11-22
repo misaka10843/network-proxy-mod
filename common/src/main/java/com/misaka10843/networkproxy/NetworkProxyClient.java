@@ -35,38 +35,49 @@ public class NetworkProxyClient {
     }
 
     public static <T> T withDownloadProxy(Proxy defaultProxy, Function<Proxy, T> download) {
-        ProxyConfig config = getConfig();
+        return withDownloadProxy(getConfig(), defaultProxy, download);
+    }
+
+    static <T> T withDownloadProxy(ProxyConfig config, Proxy defaultProxy, Function<Proxy, T> download) {
         if (!config.enabled || !config.useForDownloads) {
             return ScopedValue.where(DOWNLOAD_AUTHENTICATION, Optional.empty()).call(() -> download.apply(defaultProxy));
         }
 
-        InetSocketAddress endpoint = new InetSocketAddress(config.host, config.port);
-        Proxy.Type type = config.type == ProxyConfig.ProxyType.HTTP ? Proxy.Type.HTTP : Proxy.Type.SOCKS;
+        InetSocketAddress endpoint = config.proxyAddress();
+        Proxy.Type type = config.type == ProxyConfig.ProxyType.SOCKS5 ? Proxy.Type.SOCKS : Proxy.Type.HTTP;
         Proxy proxy = new Proxy(type, endpoint);
         String username = config.username;
         PasswordAuthentication credentials = username == null || username.isEmpty() ? null
                 : new PasswordAuthentication(username, config.password.toCharArray());
-        var authentication = new DownloadAuthentication(endpoint, type, credentials);
+        var authentication = new DownloadAuthentication(endpoint, config.type, credentials);
         return ScopedValue.where(DOWNLOAD_AUTHENTICATION, Optional.of(authentication)).call(() -> download.apply(proxy));
     }
 
     public static void configureDownloadAuthentication(URLConnection connection) {
         var authentication = DOWNLOAD_AUTHENTICATION.orElse(Optional.empty());
         if (connection instanceof HttpURLConnection http && authentication.isPresent()
-                && authentication.get().type() == Proxy.Type.HTTP) {
+                && authentication.get().type() == ProxyConfig.ProxyType.HTTP) {
             // A connection-specific authenticator also isolates the JDK's HTTP authentication cache.
             http.setAuthenticator(new AuthenticatorWrapper(Authenticator.getDefault(), authentication.get()));
         }
     }
 
-    private record DownloadAuthentication(InetSocketAddress endpoint, Proxy.Type type,
+    public static URLConnection openDownloadThroughHttpsProxy(URL url) {
+        var authentication = DOWNLOAD_AUTHENTICATION.orElse(Optional.empty()).orElse(null);
+        if (authentication == null || authentication.type() != ProxyConfig.ProxyType.HTTPS) {
+            return null;
+        }
+        return new HttpsProxyDownloadConnection(url, authentication.endpoint(), authentication.credentials());
+    }
+
+    private record DownloadAuthentication(InetSocketAddress endpoint, ProxyConfig.ProxyType type,
                                           PasswordAuthentication credentials) {
         PasswordAuthentication forRequest(String host, InetAddress address, int port, String protocol,
                                           URL url, Authenticator.RequestorType requestor) {
             if (credentials == null || port != endpoint.getPort()) {
                 return null;
             }
-            if (type == Proxy.Type.SOCKS) {
+            if (type == ProxyConfig.ProxyType.SOCKS5) {
                 // The JDK SOCKS5 handshake uses the authenticator overload without a URL or requestor type.
                 if (url != null || !"SOCKS5".equalsIgnoreCase(protocol)) {
                     return null;
@@ -95,7 +106,7 @@ public class NetworkProxyClient {
                                                                                URL url, RequestorType requestor) {
             var authentication = DOWNLOAD_AUTHENTICATION.orElse(Optional.empty()).orElse(null);
             if (authentication != null && (authentication == httpAuthentication
-                    || (httpAuthentication == null && authentication.type() == Proxy.Type.SOCKS))) {
+                    || (httpAuthentication == null && authentication.type() == ProxyConfig.ProxyType.SOCKS5))) {
                 var credentials = authentication.forRequest(host, address, port, protocol, url, requestor);
                 if (credentials != null) {
                     return credentials;
