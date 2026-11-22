@@ -13,7 +13,7 @@ Network Proxy requires Java 25 and Cloth Config.
 
 ### Server addresses
 
-Choose **Add Server Address** in **Network Proxy Settings** to set the proxy type, host, port, and optional credentials. Use `example.org` to match any port on that hostname or `example.org:25566` to match a specific port.
+Choose **Add Server Address** in **Network Proxy Settings** to set the proxy type, host, port, and optional credentials. Use `domain.tld` to match any port on that hostname or `domain.tld:<port>` to match a specific port.
 
 **Use Proxy** requires the configured proxy for joins and pings to that address. Resource packs from that server use the same proxy. Server-directed transfers require a proxy for the new address. Turning it off makes that address direct unless the killswitch is on.
 
