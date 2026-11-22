@@ -7,6 +7,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.proxy.HttpProxyHandler;
@@ -19,9 +21,9 @@ import io.netty.util.NetUtil;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
-import java.util.function.Supplier;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
@@ -30,29 +32,11 @@ public final class ProxyConnection {
     private static final String PROXY_TLS_HANDLER = "networkproxy_tls";
     private static final AttributeKey<Optional<ProxySettings>> SERVER_SETTINGS =
             AttributeKey.valueOf("networkproxy_server_settings");
-    private static final ScopedValue<Optional<ProxySettings>> MULTIPLAYER_SETTINGS = ScopedValue.newInstance();
-
     private ProxyConnection() {
     }
 
-    public static <T> T withServerSettings(ProxySettings settings, Supplier<T> connect) {
-        return ScopedValue.where(MULTIPLAYER_SETTINGS, Optional.ofNullable(settings).map(selected -> {
-            ProxySettings snapshot = new ProxySettings();
-            snapshot.copyFrom(selected);
-            return snapshot;
-        })).call(connect::get);
-    }
-
-    public static boolean hasServerSettings() {
-        return MULTIPLAYER_SETTINGS.isBound();
-    }
-
-    public static ProxySettings serverSettings() {
-        return MULTIPLAYER_SETTINGS.get().orElse(null);
-    }
-
-    public static void setServerSettings(Bootstrap bootstrap) {
-        bootstrap.attr(SERVER_SETTINGS, MULTIPLAYER_SETTINGS.get());
+    public static void setServerSettings(Bootstrap bootstrap, ProxySettings settings) {
+        bootstrap.attr(SERVER_SETTINGS, Optional.ofNullable(settings));
     }
 
     public static ProxySettings selectSettings(Channel channel, String host) {
@@ -87,21 +71,64 @@ public final class ProxyConnection {
         return target;
     }
 
-    public static ChannelFuture connectThroughProxy(Bootstrap bootstrap, InetSocketAddress target,
-                                                    ProxySettings config) {
+    public static ChannelFuture connectThroughRoute(Bootstrap bootstrap, InetSocketAddress target, ProxyRoute route) {
+        InetSocketAddress endpoint = route.enforced() ? route.enforcedEndpoint() : null;
+        ProxySettings settings = route.settings();
+        if (settings == null || (target.isUnresolved() && !settings.usesRemoteDns())
+                || (route.enforced() && settings.usesRemoteDns() && !target.isUnresolved())) {
+            throw new IllegalStateException("The selected proxy route cannot use this destination address");
+        }
+        return connectThroughProxy(bootstrap, target, settings, endpoint);
+    }
+
+    public static ChannelFuture connectThroughProxy(Bootstrap bootstrap, InetSocketAddress target, ProxySettings config) {
+        return connectThroughProxy(bootstrap, target, config, null);
+    }
+
+    private static ChannelFuture connectThroughProxy(Bootstrap bootstrap, InetSocketAddress target,
+                                                     ProxySettings config, InetSocketAddress enforcedEndpoint) {
         NetworkProxyClient.LOGGER.info("Routing through proxy to: {}", target.getHostString());
         ChannelHandler originalHandler = bootstrap.config().handler();
         bootstrap.handler(new ChannelInitializer<Channel>() {
             @Override
             protected void initChannel(Channel channel) {
-                installHandler(channel.pipeline(), BOOTSTRAP_PROXY_HANDLER, config);
-                channel.pipeline().addLast(originalHandler);
+                ChannelPipeline pipeline = channel.pipeline();
+                InetSocketAddress endpoint = enforcedEndpoint == null ? config.proxyAddress() : enforcedEndpoint;
+                ProxyHandler proxy = createHandler(endpoint, config);
+                SslHandler tls = installHandler(pipeline, BOOTSTRAP_PROXY_HANDLER, config, endpoint, proxy);
+                pipeline.addLast(originalHandler);
+                if (enforcedEndpoint != null) {
+                    guardProxySocket(pipeline, endpoint, proxy, tls);
+                }
             }
         });
 
-        // The proxy handler needs the chosen destination exactly as supplied.
         return bootstrap.resolver(NoopAddressResolverGroup.INSTANCE)
                 .connect(proxyDestination(target, config, config.usesRemoteDns()));
+    }
+
+    private static void guardProxySocket(ChannelPipeline pipeline, InetSocketAddress endpoint,
+                                         ProxyHandler proxy, SslHandler tls) {
+        // Outbound connect travels back toward the head after the proxy rewrites its destination.
+        pipeline.addFirst("networkproxy_required_peer", new ChannelOutboundHandlerAdapter() {
+            @Override
+            public void connect(ChannelHandlerContext ctx, SocketAddress remote, SocketAddress local,
+                                ChannelPromise promise) {
+                var handlers = pipeline.names();
+                int proxyIndex = handlers.indexOf(BOOTSTRAP_PROXY_HANDLER);
+                int tlsIndex = handlers.indexOf(PROXY_TLS_HANDLER);
+                boolean tlsInOrder = tls == null || (pipeline.get(PROXY_TLS_HANDLER) == tls
+                        && tlsIndex > 0 && tlsIndex < proxyIndex);
+                if (pipeline.first() != this || !endpoint.equals(remote) || pipeline.get(BOOTSTRAP_PROXY_HANDLER) != proxy
+                        || !tlsInOrder || pipeline.toMap().values().stream()
+                        .anyMatch(handler -> handler instanceof ProxyHandler && handler != proxy)) {
+                    promise.tryFailure(new IllegalStateException("Cannot enforce the configured proxy route"));
+                    ctx.close();
+                    return;
+                }
+                ctx.connect(remote, local, promise);
+            }
+        });
     }
 
     public static ChannelFuture awaitTunnel(ChannelFuture transport, String handlerName) {
@@ -149,12 +176,18 @@ public final class ProxyConnection {
 
     public static void installHandler(ChannelPipeline pipeline, String name, ProxySettings config) {
         InetSocketAddress address = config.proxyAddress();
+        installHandler(pipeline, name, config, address, createHandler(address, config));
+    }
+
+    private static SslHandler installHandler(ChannelPipeline pipeline, String name, ProxySettings config,
+                                             InetSocketAddress address, ProxyHandler proxy) {
         SslHandler tls = config.type == ProxyConfig.ProxyType.HTTPS ? proxyTls(address) : null;
-        pipeline.addFirst(name, createHandler(address, config));
+        pipeline.addFirst(name, proxy);
         if (tls != null) {
             // CONNECT and proxy authentication must pass through the TLS handler.
             pipeline.addFirst(PROXY_TLS_HANDLER, tls);
         }
+        return tls;
     }
 
     private static SslHandler proxyTls(InetSocketAddress address) {

@@ -2,10 +2,13 @@ package com.misaka10843.networkproxy;
 
 import com.misaka10843.networkproxy.config.ProxyConfig;
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.proxy.HttpProxyHandler;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -18,6 +21,8 @@ import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.net.ServerSocket;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -44,6 +49,7 @@ public final class HttpsProxyAuthenticationTest {
         SSLContext.setDefault(context);
         try {
             testMultiplayerConnect(context);
+            testEnforcedPeerGuard();
             testDownload(context, false);
             testDownload(context, true);
         } finally {
@@ -61,12 +67,15 @@ public final class HttpsProxyAuthenticationTest {
             require(proxy.getInputStream().read() == 42, "Application byte must travel inside the TLS tunnel");
         }, config -> {
             config.resolveHostnamesThroughProxy = true;
+            config.enabled = true;
+            config.enforceProxy = true;
+            var route = ProxyRoute.select(config, "game.invalid", 25566, false);
             var group = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
             try {
                 var bootstrap = new Bootstrap().group(group).channel(NioSocketChannel.class)
                         .handler(new ChannelInboundHandlerAdapter());
-                var transport = ProxyConnection.connectThroughProxy(bootstrap,
-                        InetSocketAddress.createUnresolved("game.invalid", 25566), config);
+                var transport = ProxyConnection.connectThroughRoute(bootstrap,
+                        InetSocketAddress.createUnresolved("game.invalid", 25566), route);
                 var tunnel = ProxyConnection.awaitTunnel(transport, ProxyConnection.BOOTSTRAP_PROXY_HANDLER);
                 require(tunnel.await(6, TimeUnit.SECONDS), "The multiplayer tunnel timed out");
                 if (!tunnel.isSuccess()) {
@@ -82,6 +91,58 @@ public final class HttpsProxyAuthenticationTest {
                 group.shutdownGracefully(0, 2, TimeUnit.SECONDS).syncUninterruptibly();
             }
         });
+    }
+
+    private static void testEnforcedPeerGuard() throws Exception {
+        InetAddress loopback = InetAddress.getLoopbackAddress();
+        try (var target = new ServerSocket(0, 1, loopback); var proxy = new ServerSocket(0, 1, loopback)) {
+            target.setSoTimeout(250);
+            proxy.setSoTimeout(250);
+            var config = new ProxyConfig();
+            config.enabled = true;
+            config.enforceProxy = true;
+            config.type = ProxyConfig.ProxyType.HTTP;
+            config.host = loopback.getHostAddress();
+            config.port = proxy.getLocalPort();
+            var destination = new InetSocketAddress(loopback, target.getLocalPort());
+            var route = ProxyRoute.select(config, config.host, destination.getPort(), false);
+
+            var group = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
+            try {
+                var bootstrap = new Bootstrap().group(group).channel(NioSocketChannel.class)
+                        .handler(new ChannelInitializer<Channel>() {
+                            @Override
+                            protected void initChannel(Channel channel) {
+                                channel.pipeline().addLast(new HttpProxyHandler(destination));
+                            }
+                        });
+                var transport = ProxyConnection.connectThroughRoute(bootstrap, destination, route);
+                require(transport.await(6, TimeUnit.SECONDS) && !transport.isSuccess(),
+                        "Conflicting proxy handlers must fail before TCP connect");
+                require(transport.cause().getMessage().contains("Cannot enforce"), "The required peer guard must reject the conflict");
+                requireNoConnection(target);
+                requireNoConnection(proxy);
+
+                proxy.close();
+                var unavailable = new Bootstrap().group(group).channel(NioSocketChannel.class)
+                        .handler(new ChannelInboundHandlerAdapter());
+                var failed = ProxyConnection.awaitTunnel(ProxyConnection.connectThroughRoute(unavailable, destination, route),
+                        ProxyConnection.BOOTSTRAP_PROXY_HANDLER);
+                require(failed.await(6, TimeUnit.SECONDS) && !failed.isSuccess(),
+                        "An unavailable configured proxy must fail the tunnel");
+                requireNoConnection(target);
+            } finally {
+                group.shutdownGracefully(0, 2, TimeUnit.SECONDS).syncUninterruptibly();
+            }
+        }
+    }
+
+    private static void requireNoConnection(ServerSocket listener) throws IOException {
+        try (var socket = listener.accept()) {
+            throw new AssertionError("Unexpected TCP connection to " + listener.getLocalSocketAddress());
+        } catch (SocketTimeoutException expected) {
+            // The listener saw no connection.
+        }
     }
 
     private static void testDownload(SSLContext context, boolean tlsOrigin) throws Exception {

@@ -3,6 +3,8 @@
   "config.networkproxy.title": "网络代理设置",
   "config.networkproxy.category.general": "默认代理设置",
   "config.networkproxy.default_enabled": "启用默认代理",
+  "config.networkproxy.enforce_proxy": "强制使用代理",
+  "config.networkproxy.enforce_proxy.tooltip": "多人游戏连接、服务器延迟检测、服务器转移和服务器资源包必须使用已启用的代理。没有可用代理配置的连接将被阻止。",
   "config.networkproxy.address_enabled": "对此地址启用代理",
   "config.networkproxy.address_proxy": "使用 %s 代理",
   "config.networkproxy.address_direct": "直接连接",

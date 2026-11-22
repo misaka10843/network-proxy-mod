@@ -81,19 +81,37 @@ public final class ProxyConfigScreen extends Screen {
     }
 
     private Screen generalSettings() {
+        ProxyConfig edited = new ProxyConfig();
+        edited.copyFrom(config);
+        edited.enabled = config.enabled;
+        edited.enforceProxy = config.enforceProxy;
+        edited.useForDownloads = config.useForDownloads;
+        edited.configuredAddressesOnly = config.configuredAddressesOnly;
         ConfigBuilder builder = ConfigBuilder.create().setParentScreen(this)
-                .setTitle(label("category.general")).setSavingRunnable(ProxyConfigScreen::saveConfig);
+                .setTitle(label("category.general")).setSavingRunnable(() -> {
+                    synchronized (config) {
+                        config.copyFrom(edited);
+                        config.enabled = edited.enabled;
+                        config.enforceProxy = edited.enforceProxy;
+                        config.useForDownloads = edited.useForDownloads;
+                        config.configuredAddressesOnly = edited.configuredAddressesOnly;
+                    }
+                    saveConfig();
+                });
         ConfigCategory general = builder.getOrCreateCategory(label("category.general"));
         ConfigEntryBuilder fields = builder.entryBuilder();
-        var enabled = fields.startBooleanToggle(label("default_enabled"), config.enabled)
-                .setDefaultValue(false).setSaveConsumer(value -> config.enabled = value).build();
+        var enabled = fields.startBooleanToggle(label("default_enabled"), edited.enabled)
+                .setDefaultValue(false).setSaveConsumer(value -> edited.enabled = value).build();
         general.addEntry(enabled);
-        general.addEntry(fields.startBooleanToggle(label("use_for_downloads"), config.useForDownloads)
-                .setDefaultValue(false).setSaveConsumer(value -> config.useForDownloads = value).build());
-        general.addEntry(fields.startBooleanToggle(label("use_filter"), Boolean.TRUE.equals(config.configuredAddressesOnly))
+        general.addEntry(fields.startBooleanToggle(label("enforce_proxy"), edited.enforceProxy)
+                .setDefaultValue(false).setTooltip(label("enforce_proxy.tooltip"))
+                .setSaveConsumer(value -> edited.enforceProxy = value).build());
+        general.addEntry(fields.startBooleanToggle(label("use_for_downloads"), edited.useForDownloads)
+                .setDefaultValue(false).setSaveConsumer(value -> edited.useForDownloads = value).build());
+        general.addEntry(fields.startBooleanToggle(label("use_filter"), Boolean.TRUE.equals(edited.configuredAddressesOnly))
                 .setDefaultValue(false).setTooltip(label("use_filter.tooltip"))
-                .setSaveConsumer(value -> config.configuredAddressesOnly = value).build());
-        addProxyFields(general, fields, config, enabled::getValue);
+                .setSaveConsumer(value -> edited.configuredAddressesOnly = value).build());
+        addProxyFields(general, fields, edited, enabled::getValue);
         return builder.build();
     }
 

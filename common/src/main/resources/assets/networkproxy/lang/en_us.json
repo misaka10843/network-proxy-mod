@@ -3,6 +3,8 @@
   "config.networkproxy.title": "Network Proxy Settings",
   "config.networkproxy.category.general": "Default Proxy Settings",
   "config.networkproxy.default_enabled": "Enable Default Proxy",
+  "config.networkproxy.enforce_proxy": "Enforce Proxy",
+  "config.networkproxy.enforce_proxy.tooltip": "Require an enabled proxy for multiplayer joins, pings, server transfers and server resource packs. Connections with no enabled route are blocked.",
   "config.networkproxy.address_enabled": "Enable Proxy for This Address",
   "config.networkproxy.address_proxy": "Uses the %s proxy",
   "config.networkproxy.address_direct": "Connects directly",

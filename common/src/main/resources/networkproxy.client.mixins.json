@@ -7,7 +7,13 @@
     "MixinConnection",
     "ServerNameResolverMixin",
     "ServerStatusPingerMixin",
-    "HttpUtilMixin"
+    "HttpUtilMixin",
+    "ProxyRouteHolderMixin",
+    "StatusListenerMixin",
+    "TransferMixin",
+    "DownloadedPackSourceMixin",
+    "PackDownloaderMixin",
+    "DownloadQueueMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -6,6 +6,8 @@ In Network Proxy Settings, select **Add Server Address** to give a multiplayer s
 
 When **Resolve hostnames through proxy** is enabled, joins and server-list pings send the original hostname to the HTTP, HTTPS or SOCKS5 proxy. Minecraft skips local DNS and SRV lookups. For an SRV-only server, enter the target hostname and port advertised by its SRV record. With the toggle off, Minecraft resolves the address locally and sends the resulting IP to the proxy.
 
+**Enforce Proxy** is off by default. Turn it on in Default Proxy Settings to require an enabled route for multiplayer joins and pings. Disabled profiles and addresses without an enabled route are blocked. Transfers require a proxied route at the new address, and resource packs use the proxy selected for that session. With SOCKS5 and **Resolve hostnames through proxy** enabled, server-pack downloads fail because the Java download transport performs local DNS. The setting leaves Realms and unrelated Minecraft services alone.
+
 Choose **HTTPS** for a proxy endpoint that accepts TLS connections. Java verifies the certificate and hostname of the proxy for both multiplayer and proxied resource-pack downloads. Enter the hostname covered by the certificate in **Proxy Host**.
 
 The repository targets Minecraft 26.3 and builds separate Fabric and NeoForge jars from shared code. Java 25 is required.

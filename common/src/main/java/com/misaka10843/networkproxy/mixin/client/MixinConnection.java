@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.misaka10843.networkproxy.NetworkProxyClient;
 import com.misaka10843.networkproxy.ProxyConnection;
+import com.misaka10843.networkproxy.ProxyRoute;
 import com.misaka10843.networkproxy.config.ProxySettings;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelHandlerContext;
@@ -43,21 +44,21 @@ public class MixinConnection {
     )
     private static ChannelFuture connectMultiplayer(Bootstrap bootstrap, InetAddress address, int port,
                                                          Operation<ChannelFuture> original,
-                                                         @Local(argsOnly = true) InetSocketAddress target) {
-        if (!ProxyConnection.hasServerSettings()) {
+                                                         @Local(argsOnly = true) InetSocketAddress target,
+                                                         @Local(argsOnly = true) Connection connection) {
+        ProxyRoute route = ProxyRoute.current();
+        if (route == null) {
             return original.call(bootstrap, address, port);
         }
 
-        ProxySettings settings = ProxyConnection.serverSettings();
-        if (target.isUnresolved()) {
-            if (settings == null || !settings.usesRemoteDns()) {
-                throw new IllegalStateException("Proxy hostname resolution settings changed while connecting");
-            }
-            ChannelFuture transport = ProxyConnection.connectThroughProxy(bootstrap, target, settings);
+        ProxyRoute.attach(connection, route);
+        ProxySettings settings = route.settings();
+        if (route.enforced() || target.isUnresolved()) {
+            ChannelFuture transport = ProxyConnection.connectThroughRoute(bootstrap, target, route);
             return ProxyConnection.awaitTunnel(transport, ProxyConnection.BOOTSTRAP_PROXY_HANDLER);
         }
 
-        ProxyConnection.setServerSettings(bootstrap);
+        ProxyConnection.setServerSettings(bootstrap, settings);
         ChannelFuture transport = original.call(bootstrap, address, port);
         return settings == null ? transport : ProxyConnection.awaitTunnel(transport, "proxy");
     }

@@ -1,6 +1,7 @@
 package com.misaka10843.networkproxy;
 
 import com.misaka10843.networkproxy.config.ProxyConfig;
+import com.misaka10843.networkproxy.config.ProxySettings;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.GsonConfigSerializer;
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import java.util.function.Function;
 public class NetworkProxyClient {
     public static final String MOD_ID = "networkproxy";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    private static final int ENFORCED_DOWNLOAD_TIMEOUT_MILLIS = 30_000;
     private static final ScopedValue<Optional<DownloadAuthentication>> DOWNLOAD_AUTHENTICATION =
             ScopedValue.newInstance();
 
@@ -35,6 +37,15 @@ public class NetworkProxyClient {
     }
 
     public static <T> T withDownloadProxy(Proxy defaultProxy, Function<Proxy, T> download) {
+        ProxyRoute route = ProxyRoute.current();
+        if (route != null && route.enforced()) {
+            ProxySettings settings = route.settings();
+            InetSocketAddress endpoint = route.enforcedEndpoint();
+            if (settings.type == ProxyConfig.ProxyType.SOCKS5 && settings.usesRemoteDns()) {
+                throw new IllegalStateException("Cannot download a server resource pack through SOCKS5 without local DNS");
+            }
+            return withDownloadProxy(settings, endpoint, download);
+        }
         return withDownloadProxy(getConfig(), defaultProxy, download);
     }
 
@@ -43,22 +54,32 @@ public class NetworkProxyClient {
             return ScopedValue.where(DOWNLOAD_AUTHENTICATION, Optional.empty()).call(() -> download.apply(defaultProxy));
         }
 
-        InetSocketAddress endpoint = config.proxyAddress();
-        Proxy.Type type = config.type == ProxyConfig.ProxyType.SOCKS5 ? Proxy.Type.SOCKS : Proxy.Type.HTTP;
+        return withDownloadProxy(config, config.proxyAddress(), download);
+    }
+
+    private static <T> T withDownloadProxy(ProxySettings settings, InetSocketAddress endpoint,
+                                           Function<Proxy, T> download) {
+        Proxy.Type type = settings.type == ProxyConfig.ProxyType.SOCKS5 ? Proxy.Type.SOCKS : Proxy.Type.HTTP;
         Proxy proxy = new Proxy(type, endpoint);
-        String username = config.username;
+        String username = settings.username;
         PasswordAuthentication credentials = username == null || username.isEmpty() ? null
-                : new PasswordAuthentication(username, config.password.toCharArray());
-        var authentication = new DownloadAuthentication(endpoint, config.type, credentials);
+                : new PasswordAuthentication(username, settings.password.toCharArray());
+        var authentication = new DownloadAuthentication(endpoint, settings.type, credentials);
         return ScopedValue.where(DOWNLOAD_AUTHENTICATION, Optional.of(authentication)).call(() -> download.apply(proxy));
     }
 
     public static void configureDownloadAuthentication(URLConnection connection) {
         var authentication = DOWNLOAD_AUTHENTICATION.orElse(Optional.empty());
-        if (connection instanceof HttpURLConnection http && authentication.isPresent()
-                && authentication.get().type() == ProxyConfig.ProxyType.HTTP) {
-            // A connection-specific authenticator also isolates the JDK's HTTP authentication cache.
-            http.setAuthenticator(new AuthenticatorWrapper(Authenticator.getDefault(), authentication.get()));
+        if (connection instanceof HttpURLConnection http && authentication.isPresent()) {
+            ProxyRoute route = ProxyRoute.current();
+            if (route != null && route.enforced()) {
+                http.setConnectTimeout(ENFORCED_DOWNLOAD_TIMEOUT_MILLIS);
+                http.setReadTimeout(ENFORCED_DOWNLOAD_TIMEOUT_MILLIS);
+            }
+            if (authentication.get().type() == ProxyConfig.ProxyType.HTTP) {
+                // A connection-specific authenticator also isolates the JDK's HTTP authentication cache.
+                http.setAuthenticator(new AuthenticatorWrapper(Authenticator.getDefault(), authentication.get()));
+            }
         }
     }
 

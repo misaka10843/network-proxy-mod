@@ -11,6 +11,7 @@ import java.util.Locale;
 public class ProxyConfig extends ProxySettings implements ConfigData {
     public boolean enabled = false;
     public boolean useForDownloads = false;
+    public boolean enforceProxy = false;
     public boolean useFilter = false;
 
     public List<String> proxyDomains = new ArrayList<>();

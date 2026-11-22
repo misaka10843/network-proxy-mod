@@ -49,7 +49,47 @@ public final class DownloadAuthenticationTest {
 
         require(connection.authenticate(PROXY_HOST, PROXY_PORT, Authenticator.RequestorType.PROXY) == null,
                 "The connection authenticator must stop supplying credentials when the download scope ends");
+        checkEnforcedDownloads(config);
         System.out.println("Download authentication regression test passed");
+    }
+
+    private static void checkEnforcedDownloads(ProxyConfig config) {
+        config.enforceProxy = true;
+        config.useForDownloads = false;
+        var route = ProxyRoute.select(config, "game.invalid", 25565, false);
+        config.enabled = false;
+        config.enforceProxy = false;
+
+        route.run(() -> NetworkProxyClient.withDownloadProxy(Proxy.NO_PROXY, proxy -> {
+            require(proxy.type() == Proxy.Type.HTTP && proxy.address().equals(route.enforcedEndpoint()),
+                    "Server downloads must retain the enforced route despite changes to the default");
+            return null;
+        }));
+
+        var transfer = ProxyRoute.select(config, "transfer.invalid", 25565, route.enforced());
+        require(transfer.enforced(), "A server-directed transfer must inherit enforcement");
+        try {
+            transfer.enforcedEndpoint();
+            throw new AssertionError("A missing transfer route must fail");
+        } catch (IllegalStateException expected) {
+            require(expected.getMessage().contains("requires an enabled proxy"), "Explain the blocked transfer");
+        }
+
+        config.enabled = true;
+        config.enforceProxy = true;
+        config.type = ProxyConfig.ProxyType.SOCKS5;
+        config.resolveHostnamesThroughProxy = true;
+        var socks = ProxyRoute.select(config, "game.invalid", 25565, false);
+        socks.run(() -> {
+            try {
+                NetworkProxyClient.withDownloadProxy(Proxy.NO_PROXY, proxy -> {
+                    throw new AssertionError("A SOCKS5 pack must not start with required remote DNS");
+                });
+                throw new AssertionError("A SOCKS5 pack must report the unsupported DNS policy");
+            } catch (IllegalStateException expected) {
+                require(expected.getMessage().contains("without local DNS"), "Explain the blocked download");
+            }
+        });
     }
 
     private static void require(boolean condition, String message) {
