@@ -29,8 +29,6 @@
   "config.networkproxy.resolve_hostnames_through_proxy.tooltip.local": "关闭时，Minecraft 可以在本地查询服务器主机名。",
   "config.networkproxy.dns_mode.on": "开启",
   "config.networkproxy.dns_mode.off": "关闭",
-  "config.networkproxy.dns_mode.default_on": "默认（开启）",
-  "config.networkproxy.dns_mode.default_off": "默认（关闭）",
   "config.networkproxy.host": "代理服务器地址",
   "config.networkproxy.host.tooltip": "IP 地址或域名",
   "config.networkproxy.invalid_proxy_host": "请输入域名或 IP 地址。请单独设置端口。",

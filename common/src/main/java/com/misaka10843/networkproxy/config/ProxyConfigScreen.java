@@ -219,19 +219,13 @@ public final class ProxyConfigScreen extends Screen {
                 .setSaveConsumer(value -> settings.type = value).build();
         addEntry.accept(proxyType);
 
-        addEntry.accept(fields.startEnumSelector(label("resolve_hostnames_through_proxy"), DnsMode.class,
-                        DnsMode.fromOverride(settings.resolveHostnamesThroughProxy))
-                .setDefaultValue(DnsMode.DEFAULT)
-                .setEnumNameProvider(value -> switch ((DnsMode) value) {
-                    case DEFAULT -> label(ProxySettings.defaultsToRemoteDns(proxyType.getValue())
-                            ? "dns_mode.default_on" : "dns_mode.default_off");
-                    case ON -> label("dns_mode.on");
-                    case OFF -> label("dns_mode.off");
-                })
+        addEntry.accept(fields.startBooleanToggle(label("resolve_hostnames_through_proxy"), settings.usesRemoteDns())
+                .setDefaultValue(() -> ProxySettings.defaultsToRemoteDns(proxyType.getValue()))
+                .setYesNoTextSupplier(value -> label(value ? "dns_mode.on" : "dns_mode.off"))
                 .setTooltip(label("resolve_hostnames_through_proxy.tooltip"),
                         label("resolve_hostnames_through_proxy.tooltip.no_fallback"),
                         label("resolve_hostnames_through_proxy.tooltip.local"))
-                .setSaveConsumer(value -> settings.resolveHostnamesThroughProxy = value.override).build());
+                .setSaveConsumer(value -> settings.resolveHostnamesThroughProxy = value).build());
         addEntry.accept(fields.startStrField(label("host"), settings.host)
                 .setDefaultValue("").setTooltip(label("host.tooltip"))
                 .setErrorSupplier(value -> {
@@ -255,25 +249,6 @@ public final class ProxyConfigScreen extends Screen {
                 .setDefaultValue("").setSaveConsumer(value -> settings.username = value).build());
         addEntry.accept(fields.startStrField(label("password"), settings.password)
                 .setDefaultValue("").setSaveConsumer(value -> settings.password = value).build());
-    }
-
-    private enum DnsMode {
-        DEFAULT(null),
-        ON(true),
-        OFF(false);
-
-        private final Boolean override;
-
-        DnsMode(Boolean override) {
-            this.override = override;
-        }
-
-        private static DnsMode fromOverride(Boolean value) {
-            if (value == null) {
-                return DEFAULT;
-            }
-            return value ? ON : OFF;
-        }
     }
 
     private static int parsePort(String value) {

@@ -29,8 +29,6 @@
   "config.networkproxy.resolve_hostnames_through_proxy.tooltip.local": "When off, Minecraft can look up server hostnames locally and leak data.",
   "config.networkproxy.dns_mode.on": "On",
   "config.networkproxy.dns_mode.off": "Off",
-  "config.networkproxy.dns_mode.default_on": "Default (On)",
-  "config.networkproxy.dns_mode.default_off": "Default (Off)",
   "config.networkproxy.host": "Proxy Host",
   "config.networkproxy.host.tooltip": "IP address or domain name",
   "config.networkproxy.invalid_proxy_host": "Enter a hostname or IP address.",
