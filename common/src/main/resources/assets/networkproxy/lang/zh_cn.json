@@ -1,7 +1,8 @@
 {
   "modmenu.descriptionTranslation.networkproxy": "支持 HTTP、HTTPS 和 SOCKS5 代理，并可为各服务器单独配置。",
   "config.networkproxy.title": "网络代理设置",
-  "config.networkproxy.category.general": "默认代理设置",
+  "config.networkproxy.category.general": "设置",
+  "config.networkproxy.category.default_proxy": "默认代理设置",
   "config.networkproxy.realms": "Realms",
   "config.networkproxy.realms.mode": "代理模式",
   "config.networkproxy.realms.mode.default": "使用默认设置",

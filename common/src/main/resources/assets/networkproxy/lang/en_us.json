@@ -1,7 +1,8 @@
 {
   "modmenu.descriptionTranslation.networkproxy": "A Minecraft mod with support for HTTP, HTTPS and SOCKS5 proxies and per-server proxy configuration.",
   "config.networkproxy.title": "Network Proxy Settings",
-  "config.networkproxy.category.general": "Default Proxy Settings",
+  "config.networkproxy.category.general": "Settings",
+  "config.networkproxy.category.default_proxy": "Default Proxy Settings",
   "config.networkproxy.realms": "Realms",
   "config.networkproxy.realms.mode": "Proxy Mode",
   "config.networkproxy.realms.mode.default": "Follow Default Settings",

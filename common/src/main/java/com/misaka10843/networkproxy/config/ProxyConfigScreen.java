@@ -7,6 +7,9 @@ import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 import me.shedaniel.clothconfig2.api.Requirement;
+import me.shedaniel.clothconfig2.gui.entries.TextListEntry;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
@@ -103,6 +106,24 @@ public final class ProxyConfigScreen extends Screen {
                 });
         ConfigCategory general = builder.getOrCreateCategory(label("category.general"));
         ConfigEntryBuilder fields = builder.entryBuilder();
+        general.addEntry(fields.startBooleanToggle(label("enforce_proxy_all"), edited.enforceProxy)
+                .setDefaultValue(false).setTooltip(label("enforce_proxy_all.tooltip"))
+                .setSaveConsumer(value -> edited.enforceProxy = value).build());
+
+        Component heading = label("category.default_proxy").copy().withStyle(ChatFormatting.BOLD);
+        general.addEntry(new TextListEntry(heading, heading) {
+            @Override
+            public void extractRenderState(GuiGraphicsExtractor graphics, int index, int y, int x, int width,
+                                           int height, int mouseX, int mouseY, boolean hovered, float partialTick) {
+                super.extractRenderState(graphics, index, y, x, width, height, mouseX, mouseY, hovered, partialTick);
+                int start = x + font.width(heading) + 8;
+                int end = x + width - 1;
+                if (start <= end) {
+                    graphics.horizontalLine(start, end, y + 11, 0x66FFFFFF);
+                }
+            }
+        });
+
         var enabled = fields.startBooleanToggle(label("default_enabled"), edited.enabled)
                 .setDefaultValue(false)
                 .setTooltip(label("default_enabled.tooltip"))
@@ -114,9 +135,6 @@ public final class ProxyConfigScreen extends Screen {
                 .setDisplayRequirement(Requirement.isTrue(enabled))
                 .setTooltip(label("use_default_for_unlisted.tooltip"), label("use_default_for_unlisted.tooltip.enforcement"))
                 .setSaveConsumer(value -> edited.configuredAddressesOnly = !value).build());
-        general.addEntry(fields.startBooleanToggle(label("enforce_proxy_all"), edited.enforceProxy)
-                .setDefaultValue(false).setTooltip(label("enforce_proxy_all.tooltip"))
-                .setSaveConsumer(value -> edited.enforceProxy = value).build());
 
         addProxyFields(general::addEntry, fields, edited, enabled::getValue);
         return builder.build();
