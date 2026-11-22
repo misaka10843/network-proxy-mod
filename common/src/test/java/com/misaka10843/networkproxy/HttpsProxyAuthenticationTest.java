@@ -18,16 +18,20 @@ import javax.net.ssl.TrustManagerFactory;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.Authenticator;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Map;
 import java.util.TreeMap;
@@ -52,10 +56,11 @@ public final class HttpsProxyAuthenticationTest {
             testEnforcedPeerGuard();
             testDownload(context, false);
             testDownload(context, true);
+            testSocksDownloads(context);
         } finally {
             SSLContext.setDefault(previousContext);
         }
-        System.out.println("HTTPS proxy authentication regression test passed");
+        System.out.println("HTTPS and SOCKS5 proxy download regressions passed");
     }
 
     private static void testMultiplayerConnect(SSLContext context) throws Exception {
@@ -176,7 +181,7 @@ public final class HttpsProxyAuthenticationTest {
             }
         }, config -> NetworkProxyClient.withDownloadProxy(config, Proxy.NO_PROXY, selected -> {
             try {
-                var connection = NetworkProxyClient.openDownloadThroughHttpsProxy(URI.create(url).toURL());
+                var connection = NetworkProxyClient.openProxiedDownload(URI.create(url).toURL());
                 require(connection != null, "HTTPS mode should select the secure download connection");
                 try (var content = connection.getInputStream()) {
                     require(new String(content.readAllBytes(), StandardCharsets.US_ASCII).equals("pack"),
@@ -215,6 +220,120 @@ public final class HttpsProxyAuthenticationTest {
         }
     }
 
+    private static void testSocksDownloads(SSLContext context) throws Exception {
+        var previousAuthenticator = Authenticator.getDefault();
+        NetworkProxyClient.installDownloadAuthenticator();
+        try (var proxy = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+             var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            proxy.setSoTimeout(6000);
+            var config = new ProxyConfig();
+            config.enabled = true;
+            config.type = ProxyConfig.ProxyType.SOCKS5;
+            config.host = proxy.getInetAddress().getHostAddress();
+            config.port = proxy.getLocalPort();
+            config.username = USERNAME;
+            config.password = PASSWORD;
+            config.resolveHostnamesThroughProxy = true;
+            var exchange = executor.submit(() -> {
+                try (var socket = proxy.accept()) {
+                    socksConnect(socket, "first.invalid", 80, 0);
+                    requireOriginRequest(readRequest(socket), "/pack");
+                    send(socket, "HTTP/1.1 302 Found\r\nLocation: http://redirect.invalid:18080/final\r\n"
+                            + "Content-Length: 0\r\nConnection: close\r\n\r\n");
+                }
+                try (var socket = proxy.accept()) {
+                    socksConnect(socket, "redirect.invalid", 18080, 0);
+                    requireOriginRequest(readRequest(socket), "/final");
+                    sendPack(socket);
+                }
+                try (var socket = proxy.accept()) {
+                    socksConnect(socket, "origin.invalid", 443, 0);
+                    try (var origin = (SSLSocket) context.getSocketFactory().createSocket(socket, "origin.invalid", 443, false)) {
+                        origin.setUseClientMode(false);
+                        origin.startHandshake();
+                        requireOriginRequest(readRequest(origin), "/pack");
+                        sendPack(origin);
+                    }
+                }
+                try (var socket = proxy.accept()) {
+                    socksConnect(socket, "refused.invalid", 80, 4);
+                }
+                return null;
+            });
+            require(downloadSocksPack(config, "http://first.invalid/pack").equals("pack"),
+                    "An HTTP pack redirect must preserve proxy-side DNS");
+            require(downloadSocksPack(config, "https://origin.invalid/pack").equals("pack"),
+                    "An HTTPS pack must use origin TLS through the SOCKS tunnel");
+            try {
+                downloadSocksPack(config, "http://refused.invalid/pack");
+                throw new AssertionError("A pack must fail when the SOCKS proxy rejects the destination");
+            } catch (UncheckedIOException expected) {
+                require(expected.getCause() instanceof SocketException,
+                        "The download must report the SOCKS failure: " + expected.getCause());
+            }
+            exchange.get(8, TimeUnit.SECONDS);
+
+            try (var direct = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+                proxy.close();
+                direct.setSoTimeout(250);
+                try {
+                    downloadSocksPack(config, "http://localhost:" + direct.getLocalPort() + "/pack");
+                    throw new AssertionError("A pack must fail when its SOCKS proxy is unavailable");
+                } catch (UncheckedIOException expected) {
+                    require(expected.getCause() instanceof SocketException,
+                            "The download must report the unavailable proxy: " + expected.getCause());
+                }
+                requireNoConnection(direct);
+            }
+        } finally {
+            Authenticator.setDefault(previousAuthenticator);
+        }
+    }
+
+    private static String downloadSocksPack(ProxyConfig config, String url) {
+        return NetworkProxyClient.withDownloadProxy(config, Proxy.NO_PROXY, proxy -> {
+            try {
+                var connection = (java.net.HttpURLConnection) NetworkProxyClient.openProxiedDownload(URI.create(url).toURL());
+                require(connection != null, "SOCKS5 with remote DNS must use the proxied download connection");
+                connection.setInstanceFollowRedirects(true);
+                connection.setRequestProperty("Proxy-Authorization", "must-not-reach-the-origin");
+                try (var content = connection.getInputStream()) {
+                    return new String(content.readAllBytes(), StandardCharsets.US_ASCII);
+                }
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
+    }
+
+    private static void socksConnect(Socket socket, String host, int port, int status) throws IOException {
+        socket.setSoTimeout(6000);
+        var input = new DataInputStream(socket.getInputStream());
+        var output = socket.getOutputStream();
+        require(input.readUnsignedByte() == 5, "Expected SOCKS5 negotiation");
+        var methods = input.readNBytes(input.readUnsignedByte());
+        require(Arrays.equals(methods, new byte[] {0, 2}), "Expected password authentication support");
+        output.write(new byte[] {5, 2});
+        require(input.readUnsignedByte() == 1, "Expected SOCKS5 password authentication");
+        require(readSocksString(input).equals(USERNAME), "The SOCKS proxy should get its configured username");
+        require(readSocksString(input).equals(PASSWORD), "The SOCKS proxy should get its configured password");
+        output.write(new byte[] {1, 0});
+        require(Arrays.equals(input.readNBytes(4), new byte[] {5, 1, 0, 3}), "Expected a SOCKS5 domain CONNECT");
+        require(readSocksString(input).equals(host) && input.readUnsignedShort() == port,
+                "SOCKS5 must receive the original pack hostname and port");
+        output.write(new byte[] {5, (byte) status, 0, 1, 127, 0, 0, 1, 0, 0});
+    }
+
+    private static String readSocksString(DataInputStream input) throws IOException {
+        return new String(input.readNBytes(input.readUnsignedByte()), StandardCharsets.US_ASCII);
+    }
+
+    private static void requireOriginRequest(Request request, String path) {
+        require(request.line().equals("GET " + path + " HTTP/1.1"), "Unexpected resource-pack request");
+        require(!request.headers().containsKey("Authorization") && !request.headers().containsKey("Proxy-Authorization"),
+                "The origin must not receive SOCKS5 credentials or a proxy authorization header");
+    }
+
     private static SSLContext createTlsContext() throws Exception {
         Path directory = Files.createTempDirectory("networkproxy-tls-test");
         Path file = directory.resolve("fixture.p12");
@@ -251,7 +370,7 @@ public final class HttpsProxyAuthenticationTest {
         }
     }
 
-    private static Request readRequest(SSLSocket socket) throws IOException {
+    private static Request readRequest(Socket socket) throws IOException {
         var input = new DataInputStream(socket.getInputStream());
         var lines = new StringBuilder();
         while (!lines.toString().endsWith("\r\n\r\n")) {
@@ -276,11 +395,11 @@ public final class HttpsProxyAuthenticationTest {
         require(!request.headers().containsKey("Authorization"), "Proxy credentials must not be sent as origin authorization");
     }
 
-    private static void sendPack(SSLSocket socket) throws IOException {
+    private static void sendPack(Socket socket) throws IOException {
         send(socket, "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\npack");
     }
 
-    private static void send(SSLSocket socket, String response) throws IOException {
+    private static void send(Socket socket, String response) throws IOException {
         socket.getOutputStream().write(response.getBytes(StandardCharsets.US_ASCII));
     }
 

@@ -33,18 +33,17 @@ public class NetworkProxyClient {
         AutoConfig.register(ProxyConfig.class, GsonConfigSerializer::new);
 
         LOGGER.info("NetworkProxy Client Initialized!");
+        installDownloadAuthenticator();
+    }
+
+    static void installDownloadAuthenticator() {
         Authenticator.setDefault(new AuthenticatorWrapper(Authenticator.getDefault(), null));
     }
 
     public static <T> T withDownloadProxy(Proxy defaultProxy, Function<Proxy, T> download) {
         ProxyRoute route = ProxyRoute.current();
         if (route != null && route.enforced()) {
-            ProxySettings settings = route.settings();
-            InetSocketAddress endpoint = route.enforcedEndpoint();
-            if (settings.type == ProxyConfig.ProxyType.SOCKS5 && settings.usesRemoteDns()) {
-                throw new IllegalStateException("Cannot download a server resource pack through SOCKS5 without local DNS");
-            }
-            return withDownloadProxy(settings, endpoint, download);
+            return withDownloadProxy(route.settings(), route.enforcedEndpoint(), download);
         }
         return withDownloadProxy(getConfig(), defaultProxy, download);
     }
@@ -64,7 +63,7 @@ public class NetworkProxyClient {
         String username = settings.username;
         PasswordAuthentication credentials = username == null || username.isEmpty() ? null
                 : new PasswordAuthentication(username, settings.password.toCharArray());
-        var authentication = new DownloadAuthentication(endpoint, settings.type, credentials);
+        var authentication = new DownloadAuthentication(endpoint, settings.type, credentials, settings.usesRemoteDns());
         return ScopedValue.where(DOWNLOAD_AUTHENTICATION, Optional.of(authentication)).call(() -> download.apply(proxy));
     }
 
@@ -83,16 +82,22 @@ public class NetworkProxyClient {
         }
     }
 
-    public static URLConnection openDownloadThroughHttpsProxy(URL url) {
+    public static URLConnection openProxiedDownload(URL url) {
         var authentication = DOWNLOAD_AUTHENTICATION.orElse(Optional.empty()).orElse(null);
-        if (authentication == null || authentication.type() != ProxyConfig.ProxyType.HTTPS) {
+        if (authentication == null) {
             return null;
         }
-        return new HttpsProxyDownloadConnection(url, authentication.endpoint(), authentication.credentials());
+        return switch (authentication.type()) {
+            case HTTPS -> new ProxiedDownloadConnection(url, authentication.endpoint(),
+                    authentication.type(), authentication.credentials());
+            case SOCKS5 -> authentication.remoteDns()
+                    ? new ProxiedDownloadConnection(url, authentication.endpoint(), authentication.type(), null) : null;
+            case HTTP -> null;
+        };
     }
 
     private record DownloadAuthentication(InetSocketAddress endpoint, ProxyConfig.ProxyType type,
-                                          PasswordAuthentication credentials) {
+                                          PasswordAuthentication credentials, boolean remoteDns) {
         PasswordAuthentication forRequest(String host, InetAddress address, int port, String protocol,
                                           URL url, Authenticator.RequestorType requestor) {
             if (credentials == null || port != endpoint.getPort()) {

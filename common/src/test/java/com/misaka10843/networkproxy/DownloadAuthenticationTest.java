@@ -62,7 +62,7 @@ public final class DownloadAuthenticationTest {
         System.out.println("Download authentication regression test passed");
     }
 
-    private static void checkEnforcedDownloads(ProxyConfig config) {
+    private static void checkEnforcedDownloads(ProxyConfig config) throws Exception {
         config.enabled = false;
         var profile = new ServerProxySettings();
         profile.copyFrom(config);
@@ -91,16 +91,13 @@ public final class DownloadAuthenticationTest {
         config.type = ProxyConfig.ProxyType.SOCKS5;
         config.resolveHostnamesThroughProxy = true;
         var socks = ProxyRoute.select(config, "socks.invalid", 25565, false);
-        socks.run(() -> {
-            try {
-                NetworkProxyClient.withDownloadProxy(Proxy.NO_PROXY, proxy -> {
-                    throw new AssertionError("A SOCKS5 pack must not start with required remote DNS");
-                });
-                throw new AssertionError("A SOCKS5 pack must report the unsupported DNS policy");
-            } catch (IllegalStateException expected) {
-                require(expected.getMessage().contains("without local DNS"), "Explain the blocked download");
-            }
-        });
+        var pack = URI.create("http://pack.invalid/resource-pack.zip").toURL();
+        socks.run(() -> NetworkProxyClient.withDownloadProxy(Proxy.NO_PROXY, proxy -> {
+            require(proxy.type() == Proxy.Type.SOCKS, "Enforced SOCKS downloads retain the selected proxy type");
+            require(NetworkProxyClient.openProxiedDownload(pack) instanceof ProxiedDownloadConnection,
+                    "Enforced SOCKS downloads with remote DNS must use the unresolved destination transport");
+            return null;
+        }));
     }
 
     private static void require(boolean condition, String message) {

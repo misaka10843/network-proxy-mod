@@ -30,9 +30,9 @@ public class HttpUtilMixin {
     @WrapOperation(method = "downloadFile", at = @At(value = "INVOKE",
             target = "Ljava/net/URL;openConnection(Ljava/net/Proxy;)Ljava/net/URLConnection;"))
     private static URLConnection configureAuthentication(URL url, Proxy proxy, Operation<URLConnection> original) {
-        URLConnection secure = NetworkProxyClient.openDownloadThroughHttpsProxy(url);
-        if (secure != null) {
-            return secure;
+        URLConnection proxied = NetworkProxyClient.openProxiedDownload(url);
+        if (proxied != null) {
+            return proxied;
         }
         URLConnection connection = original.call(url, proxy);
         NetworkProxyClient.configureDownloadAuthentication(connection);

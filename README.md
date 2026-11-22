@@ -20,7 +20,9 @@ Turn on **Use Proxy** in an address profile to require that proxy for joins and 
 
 For proxied multiplayer joins and pings, **DNS via Proxy** sends the original server hostname to the proxy. Minecraft skips local DNS and SRV lookups and does not retry with local DNS if the proxy fails. With the option off, Minecraft resolves the server address locally. For an SRV-only server, enter the hostname and port advertised by its SRV record if you use **DNS via Proxy**.
 
-This is compatible with Tor and I2P proxies that can resolve and reach the destination. Server resource-pack downloads from an enforced SOCKS5 session with **DNS via Proxy** enabled are blocked because the download transport uses local DNS.
+For game connections, **DNS via Proxy** can pass a `.onion` hostname to Tor or a `.i2p` hostname to a compatible I2P proxy.
+
+With **DNS via Proxy** enabled, SOCKS5 resource-pack downloads also send the pack hostname to the proxy, including after redirects. HTTP and HTTPS pack URLs both work through that tunnel. If the proxy is unavailable or rejects the destination, the download fails.
 
 Choose **HTTPS** for a proxy endpoint that accepts TLS. Java verifies the proxy certificate and hostname for multiplayer connections and proxied resource-pack downloads. Enter the hostname covered by the certificate in **Proxy Host**.
 
@@ -49,3 +51,8 @@ In IntelliJ IDEA, reload the Gradle project to generate the **Fabric Client**
 run configuration. It runs the `:fabric:runClient` task; NeoForge has its own
 client configuration. If the Fabric configuration is missing after syncing,
 run `./gradlew :fabric:ideaSyncTask` and reload the project.
+
+## Credits
+
+- Original mod by [misaka10843](https://github.com/misaka10843).
+- Per-address settings, proxy enforcement, and remote DNS improvements by [FF69B4](https://github.com/FF69B4).

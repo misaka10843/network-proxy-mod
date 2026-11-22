@@ -7,6 +7,7 @@ modId="networkproxy"
 version="${version}"
 displayName="Network Proxy"
 authors="misaka10843"
+credits="FF69B4"
 description='''HTTP, HTTPS and SOCKS5 proxy support for Minecraft clients.'''
 
 [[mixins]]
