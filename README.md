@@ -47,4 +47,5 @@ In IntelliJ IDEA, reload the Gradle project to generate the **Fabric Client** ru
 ## Credits
 
 - Original mod by [misaka10843](https://github.com/misaka10843).
-- Proxy enforcement and remote DNS improvements by [FF69B4](https://github.com/FF69B4).
+- Proxy enforcement and DNS via Proxy by [FF69B4](https://github.com/FF69B4).
+- Resource-pack proxy support by [kidofcubes](https://github.com/kidofcubes).
