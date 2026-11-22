@@ -10,6 +10,7 @@ import java.util.Locale;
 public class ServerProxySettings extends ProxySettings {
     public String address = "";
     public boolean enabled = true;
+    public boolean enforceProxyForProfile;
     public boolean legacyDomainMatch;
 
     public ServerProxySettings copy() {
@@ -17,6 +18,7 @@ public class ServerProxySettings extends ProxySettings {
         copy.copyFrom(this);
         copy.address = address;
         copy.enabled = enabled;
+        copy.enforceProxyForProfile = enforceProxyForProfile;
         copy.legacyDomainMatch = legacyDomainMatch;
         return copy;
     }

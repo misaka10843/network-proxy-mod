@@ -97,11 +97,9 @@ public final class ProxyHostnameResolutionTest {
 
     private static void checkEnforcementSelection() {
         var existing = new Gson().fromJson("{\"enforceProxy\":true}", ProxyConfig.class);
-        require(existing.enforceProxy && !existing.enforceProxyForProfile,
-                "Keep the saved global enforcement setting separate from the default proxy profile");
+        require(existing.enforceProxy, "Keep saved global enforcement");
 
         var config = new ProxyConfig();
-        config.enforceProxyForProfile = true;
 
         var protectedProfile = new ServerProxySettings();
         protectedProfile.address = "game.example:25566";
@@ -110,7 +108,10 @@ public final class ProxyHostnameResolutionTest {
         otherPorts.address = "game.example";
         config.serverAddresses = List.of(otherPorts, protectedProfile);
 
-        var protectedRoute = ProxyRoute.select(config, "game.example", 25566, false);
+        require(protectedProfile.copy().enforceProxyForProfile, "Editing an address preserves its enforcement");
+        var saved = new Gson().toJson(config);
+        var loaded = new Gson().fromJson(saved, ProxyConfig.class);
+        var protectedRoute = ProxyRoute.select(loaded, "game.example", 25566, false);
         require(protectedRoute.enforced(), "A port-specific profile can enforce its own proxy");
         var otherRoute = ProxyRoute.select(config, "game.example", 25565, false);
         require(otherRoute.settings() != null && !otherRoute.enforced(),
@@ -120,8 +121,9 @@ public final class ProxyHostnameResolutionTest {
                 "The disabled default must leave unmatched addresses direct");
 
         config.enabled = true;
-        require(ProxyRoute.select(config, "other.example", 25565, false).enforced(),
-                "Enforcement on the default applies when the default proxy is selected");
+        var defaultRoute = ProxyRoute.select(config, "other.example", 25565, false);
+        require(defaultRoute.settings() != null && !defaultRoute.enforced(),
+                "The default proxy only enforces when the global switch is enabled");
         protectedProfile.enabled = false;
         var directProfile = ProxyRoute.select(config, "game.example", 25566, false);
         require(directProfile.settings() == null && !directProfile.enforced(),

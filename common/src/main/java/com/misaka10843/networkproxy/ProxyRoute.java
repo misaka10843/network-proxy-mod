@@ -2,6 +2,7 @@ package com.misaka10843.networkproxy;
 
 import com.misaka10843.networkproxy.config.ProxyConfig;
 import com.misaka10843.networkproxy.config.ProxySettings;
+import com.misaka10843.networkproxy.config.ServerProxySettings;
 
 import java.net.InetSocketAddress;
 import java.util.function.Supplier;
@@ -13,12 +14,12 @@ public final class ProxyRoute {
     private final boolean enforced;
     private InetSocketAddress endpoint;
 
-    private ProxyRoute(ProxySettings selected, boolean inheritedEnforcement) {
+    private ProxyRoute(ProxySettings selected, boolean requireProxy) {
         settings = selected == null ? null : new ProxySettings();
         if (settings != null) {
             settings.copyFrom(selected);
         }
-        enforced = inheritedEnforcement || (settings != null && settings.enforceProxyForProfile);
+        enforced = requireProxy || (selected instanceof ServerProxySettings profile && profile.enforceProxyForProfile);
     }
 
     public static ProxyRoute select(ProxyConfig config, String host, int port, boolean inheritedEnforcement) {

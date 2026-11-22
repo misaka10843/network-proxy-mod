@@ -149,6 +149,9 @@ public final class ProxyConfigScreen extends Screen {
         var enabled = fields.startBooleanToggle(label("address_enabled"), entry.enabled)
                 .setDefaultValue(true).setSaveConsumer(value -> entry.enabled = value).build();
         category.addEntry(enabled);
+        category.addEntry(fields.startBooleanToggle(label("enforce_proxy"), entry.enforceProxyForProfile)
+                .setDefaultValue(false).setTooltip(label("enforce_proxy.tooltip"))
+                .setSaveConsumer(value -> entry.enforceProxyForProfile = value).build());
         addProxyFields(category, fields, entry, enabled::getValue);
         return builder.build();
     }
@@ -185,9 +188,6 @@ public final class ProxyConfigScreen extends Screen {
         category.addEntry(fields.startEnumSelector(label("type"), ProxyConfig.ProxyType.class, settings.type)
                 .setDefaultValue(ProxyConfig.ProxyType.SOCKS5).setEnumNameProvider(type -> Component.literal(type.name()))
                 .setSaveConsumer(value -> settings.type = value).build());
-        category.addEntry(fields.startBooleanToggle(label("enforce_proxy"), settings.enforceProxyForProfile)
-                .setDefaultValue(false).setTooltip(label("enforce_proxy.tooltip"))
-                .setSaveConsumer(value -> settings.enforceProxyForProfile = value).build());
         category.addEntry(fields.startBooleanToggle(label("resolve_hostnames_through_proxy"), settings.usesRemoteDns())
                 .setDefaultValue(false).setTooltip(label("resolve_hostnames_through_proxy.tooltip"))
                 .setSaveConsumer(value -> settings.resolveHostnamesThroughProxy = value).build());

@@ -4,7 +4,7 @@
   "config.networkproxy.category.general": "Default Proxy Settings",
   "config.networkproxy.default_enabled": "Enable Default Proxy",
   "config.networkproxy.enforce_proxy": "Enforce Proxy",
-  "config.networkproxy.enforce_proxy.tooltip": "Strictly require a proxy to join or ping a server, without a proxy, servers are not pingable.",
+  "config.networkproxy.enforce_proxy.tooltip": "Require the configured proxy when connecting to this address.",
   "config.networkproxy.enforce_proxy_all": "Enforce Proxy for All Servers",
   "config.networkproxy.enforce_proxy_all.tooltip": "Strictly require a proxy to join or ping a server, without a proxy, servers are not pingable.",
   "config.networkproxy.address_enabled": "Enable Proxy",
