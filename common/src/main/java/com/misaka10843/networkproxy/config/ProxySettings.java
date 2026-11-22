@@ -12,7 +12,11 @@ public class ProxySettings {
     public String password = "";
 
     public boolean usesRemoteDns() {
-        return Boolean.TRUE.equals(resolveHostnamesThroughProxy);
+        return resolveHostnamesThroughProxy == null ? defaultsToRemoteDns(type) : resolveHostnamesThroughProxy;
+    }
+
+    static boolean defaultsToRemoteDns(ProxyConfig.ProxyType type) {
+        return type == ProxyConfig.ProxyType.SOCKS5;
     }
 
     public InetSocketAddress proxyAddress() {
@@ -26,8 +30,8 @@ public class ProxySettings {
         if (type == null) {
             type = ProxyConfig.ProxyType.SOCKS5;
         }
-        if (resolveHostnamesThroughProxy == null) {
-            resolveHostnamesThroughProxy = type == ProxyConfig.ProxyType.SOCKS5 && Boolean.TRUE.equals(socks5RemoteDns);
+        if (resolveHostnamesThroughProxy == null && type == ProxyConfig.ProxyType.SOCKS5) {
+            resolveHostnamesThroughProxy = socks5RemoteDns;
         }
         socks5RemoteDns = null;
         if (host == null) {
@@ -43,7 +47,7 @@ public class ProxySettings {
 
     public void copyFrom(ProxySettings source) {
         type = source.type;
-        resolveHostnamesThroughProxy = source.usesRemoteDns();
+        resolveHostnamesThroughProxy = source.resolveHostnamesThroughProxy;
         host = source.host;
         port = source.port;
         username = source.username;

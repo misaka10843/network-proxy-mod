@@ -1,58 +1,50 @@
 # Network Proxy
 
-A client-side Minecraft mod for routing server connections through HTTP, HTTPS or SOCKS5 proxies, with optional domain filtering and resource-pack download proxying.
+A Minecraft 26.3 client mod for HTTP, HTTPS, and SOCKS5 proxies.
 
-## Proxy settings
+## Install
+
+Network Proxy requires Java 25 and Cloth Config.
+
+- **Fabric** requires Fabric Loader. Install **Mod Menu** to configure Network Proxy in-game.
+- **NeoForge** users can open Network Proxy Settings from the mod list.
+
+## Configure
 
 ### Server addresses
 
-Open **Network Proxy Settings** and select **Add Server Address** to set a proxy type, host, port, and optional credentials for a multiplayer server. Use `example.org` to match any port on that hostname or `example.org:25566` for a specific port. Port-specific profiles take precedence. Imported domain filters match the domain and its subdomains.
+Choose **Add Server Address** in **Network Proxy Settings** to set the proxy type, host, port, and optional credentials. Use `example.org` to match any port on that hostname or `example.org:25566` to match a specific port.
 
-Turn on **Use Proxy** in an address profile to require that proxy for joins and server-list pings. If it is unavailable, the connection fails. Turning **Use Proxy** off makes that address direct unless the killswitch is on. Server resource packs use the session's proxy, and transfers from that session require a proxy route for the new address.
+**Use Proxy** requires the configured proxy for joins and pings to that address. Resource packs from that server use the same proxy. Server-directed transfers require a proxy for the new address. Turning it off makes that address direct unless the killswitch is on.
 
-### Default proxy and killswitch
+### Default proxy
 
-- **Enable Default Proxy** routes Minecraft web downloads through the default proxy. Server resource packs from enforced sessions use their session proxy.
-- **Proxy Unlisted Servers** appears when the default proxy is enabled. It also uses the default proxy for joins and pings to addresses without a profile.
-- **Proxy Enforcement / Killswitch** requires an enabled proxy route for every multiplayer join or ping. A missing route blocks the attempt, including an address with **Use Proxy** switched off. The killswitch is off by default.
+- Unlisted servers use the default proxy for joins and pings when **Enable Default Proxy** and **Proxy Unlisted Servers** are both on.
+- **Enable Default Proxy** also proxies web downloads. Resource packs use the game connection’s proxy when one is required.
+- HTTP and HTTPS proxies resolve pack hostnames. For SOCKS5, turn on **DNS via Proxy** to skip local hostname lookups.
+- **Proxy Enforcement / Killswitch** blocks joins and pings without an enabled proxy. It’s off by default.
 
-### DNS and proxy types
+### DNS and HTTPS
 
-For proxied multiplayer joins and pings, **DNS via Proxy** sends the original server hostname to the proxy. Minecraft skips local DNS and SRV lookups and does not retry with local DNS if the proxy fails. With the option off, Minecraft resolves the server address locally. For an SRV-only server, enter the hostname and port advertised by its SRV record if you use **DNS via Proxy**.
+**DNS via Proxy** defaults to on for SOCKS5 and off for HTTP and HTTPS. When on, it sends the server hostname to the proxy for joins and pings, skipping local DNS and SRV lookups. There’s no local DNS fallback. For SRV-only servers, enter the hostname and port from the SRV record. The proxy must be able to resolve and reach the destination, including `.onion` or `.i2p` addresses.
 
-For game connections, **DNS via Proxy** can pass a `.onion` hostname to Tor or a `.i2p` hostname to a compatible I2P proxy.
-
-With **DNS via Proxy** enabled, SOCKS5 resource-pack downloads also send the pack hostname to the proxy, including after redirects. HTTP and HTTPS pack URLs both work through that tunnel. If the proxy is unavailable or rejects the destination, the download fails.
-
-Choose **HTTPS** for a proxy endpoint that accepts TLS. Java verifies the proxy certificate and hostname for multiplayer connections and proxied resource-pack downloads. Enter the hostname covered by the certificate in **Proxy Host**.
+SOCKS5 resolves pack hostnames through the proxy when **DNS via Proxy** is on, including after redirects. HTTPS downloads use TLS through that tunnel. With **DNS via Proxy** off, Minecraft’s downloader tries to resolve the pack hostname locally before opening a SOCKS5 tunnel. Proxy failures, HTTP errors, and invalid certificates also stop the download without a direct retry.
 
 ### Realms
 
-The permanent **Realms** entry controls the Realms game connection separately from the multiplayer killswitch.
+Use the permanent **Realms** entry to set the game connection’s route.
 
 - **Follow Default Settings** keeps the existing Realms routing.
-- **Direct** connects the game session directly.
-- **Use Custom Proxy** requires a dedicated proxy for joining and for server resource packs requested during the session. The profile can use **DNS via Proxy** for the Realms server hostname.
+- **Direct** connects without a proxy.
+- **Use Custom Proxy** requires a dedicated proxy for the game connection and any resource packs the Realm requests over it. It also supports **DNS via Proxy**.
 
-Realms menus and account services keep their existing routes.
+## Build
 
-## Installation and development
+Run `./gradlew build` with Java 25. The JARs are in `fabric/build/libs` and `neoforge/build/libs`. Shared source and resources are in `common/`.
 
-The repository targets Minecraft 26.3 and builds separate Fabric and NeoForge jars from shared code. Java 25 is required.
-
-- For Fabric, install Fabric Loader and Cloth Config. **Mod Menu is required to configure Network Proxy in-game.**
-- For NeoForge, install NeoForge and Cloth Config, then open the configuration screen from the mod list.
-
-Build both variants with `./gradlew build`. The jars are generated in `fabric/build/libs` and `neoforge/build/libs`. Configure the Gradle JVM to use Java 25.
-
-The shared source and resources are in `common/`. Loader-specific entry points and metadata are in `fabric/` and `neoforge/`.
-
-In IntelliJ IDEA, reload the Gradle project to generate the **Fabric Client**
-run configuration. It runs the `:fabric:runClient` task; NeoForge has its own
-client configuration. If the Fabric configuration is missing after syncing,
-run `./gradlew :fabric:ideaSyncTask` and reload the project.
+In IntelliJ IDEA, reload the Gradle project to generate the **Fabric Client** run configuration, which runs `:fabric:runClient`. NeoForge has a separate client configuration. If **Fabric Client** is missing, run `./gradlew :fabric:ideaSyncTask` and reload the project.
 
 ## Credits
 
 - Original mod by [misaka10843](https://github.com/misaka10843).
-- Per-address settings, proxy enforcement, and remote DNS improvements by [FF69B4](https://github.com/FF69B4).
+- Proxy enforcement and remote DNS improvements by [FF69B4](https://github.com/FF69B4).

@@ -149,7 +149,6 @@ public final class ProxyConfigScreen extends Screen {
         ServerProxySettings entry = index < 0 ? new ServerProxySettings() : config.serverAddresses.get(index).copy();
         if (index < 0) {
             entry.type = config.type;
-            entry.resolveHostnamesThroughProxy = config.usesRemoteDns();
         }
         ConfigBuilder builder = ConfigBuilder.create().setParentScreen(this)
                 .setTitle(label(index < 0 ? "add_address" : "edit_address"))
@@ -215,15 +214,24 @@ public final class ProxyConfigScreen extends Screen {
 
     private static void addProxyFields(Consumer<AbstractConfigListEntry<?>> addEntry, ConfigEntryBuilder fields,
                                        ProxySettings settings, BooleanSupplier enabled) {
-        addEntry.accept(fields.startEnumSelector(label("type"), ProxyConfig.ProxyType.class, settings.type)
+        var proxyType = fields.startEnumSelector(label("type"), ProxyConfig.ProxyType.class, settings.type)
                 .setDefaultValue(ProxyConfig.ProxyType.SOCKS5).setEnumNameProvider(type -> Component.literal(type.name()))
-                .setSaveConsumer(value -> settings.type = value).build());
-        addEntry.accept(fields.startBooleanToggle(label("resolve_hostnames_through_proxy"), settings.usesRemoteDns())
-                .setDefaultValue(false)
+                .setSaveConsumer(value -> settings.type = value).build();
+        addEntry.accept(proxyType);
+
+        addEntry.accept(fields.startEnumSelector(label("resolve_hostnames_through_proxy"), DnsMode.class,
+                        DnsMode.fromOverride(settings.resolveHostnamesThroughProxy))
+                .setDefaultValue(DnsMode.DEFAULT)
+                .setEnumNameProvider(value -> switch ((DnsMode) value) {
+                    case DEFAULT -> label(ProxySettings.defaultsToRemoteDns(proxyType.getValue())
+                            ? "dns_mode.default_on" : "dns_mode.default_off");
+                    case ON -> label("dns_mode.on");
+                    case OFF -> label("dns_mode.off");
+                })
                 .setTooltip(label("resolve_hostnames_through_proxy.tooltip"),
                         label("resolve_hostnames_through_proxy.tooltip.no_fallback"),
                         label("resolve_hostnames_through_proxy.tooltip.local"))
-                .setSaveConsumer(value -> settings.resolveHostnamesThroughProxy = value).build());
+                .setSaveConsumer(value -> settings.resolveHostnamesThroughProxy = value.override).build());
         addEntry.accept(fields.startStrField(label("host"), settings.host)
                 .setDefaultValue("").setTooltip(label("host.tooltip"))
                 .setErrorSupplier(value -> {
@@ -247,6 +255,25 @@ public final class ProxyConfigScreen extends Screen {
                 .setDefaultValue("").setSaveConsumer(value -> settings.username = value).build());
         addEntry.accept(fields.startStrField(label("password"), settings.password)
                 .setDefaultValue("").setSaveConsumer(value -> settings.password = value).build());
+    }
+
+    private enum DnsMode {
+        DEFAULT(null),
+        ON(true),
+        OFF(false);
+
+        private final Boolean override;
+
+        DnsMode(Boolean override) {
+            this.override = override;
+        }
+
+        private static DnsMode fromOverride(Boolean value) {
+            if (value == null) {
+                return DEFAULT;
+            }
+            return value ? ON : OFF;
+        }
     }
 
     private static int parsePort(String value) {

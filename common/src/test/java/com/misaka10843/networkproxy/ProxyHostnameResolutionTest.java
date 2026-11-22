@@ -17,6 +17,7 @@ public final class ProxyHostnameResolutionTest {
 
     public static void main(String[] args) throws Exception {
         checkMigration();
+        checkProxyDnsDefaults();
         checkProxyEndpoint();
         checkDestinations();
         checkEnforcementSelection();
@@ -35,6 +36,7 @@ public final class ProxyHostnameResolutionTest {
                   "serverAddresses": [
                     {"address": "socks.example", "type": "SOCKS5", "socks5RemoteDns": true},
                     {"address": "http.example", "type": "HTTP", "socks5RemoteDns": true},
+                    {"address": "legacy-local.example", "type": "SOCKS5", "socks5RemoteDns": false},
                     {"address": "remote.example", "type": "HTTP", "resolveHostnamesThroughProxy": true},
                     {"address": "local.example", "type": "SOCKS5", "socks5RemoteDns": true, "resolveHostnamesThroughProxy": false}
                   ]
@@ -45,12 +47,39 @@ public final class ProxyHostnameResolutionTest {
         require(config.usesRemoteDns(), "The previous SOCKS5 default should retain remote DNS");
         require(config.forServer("socks.example", 25565).usesRemoteDns(), "Preserve legacy SOCKS5 profiles");
         require(!config.forServer("http.example", 25565).usesRemoteDns(), "An inactive legacy HTTP flag must stay off");
+        require(!config.forServer("legacy-local.example", 25565).usesRemoteDns(), "Preserve an explicit legacy SOCKS5 opt-out");
         require(config.forServer("remote.example", 25565).usesRemoteDns(), "The new setting applies to HTTP");
         require(!config.forServer("local.example", 25565).usesRemoteDns(), "The new setting takes precedence");
 
         String saved = gson.toJson(config);
         require(saved.contains("\"resolveHostnamesThroughProxy\"") && !saved.contains("\"socks5RemoteDns\""),
                 "Save only the unified hostname resolution setting");
+    }
+
+    private static void checkProxyDnsDefaults() {
+        var gson = new Gson();
+        var config = gson.fromJson("""
+                {
+                  "serverAddresses": [
+                    {"address": "socks.example"},
+                    {"address": "local.example", "resolveHostnamesThroughProxy": false},
+                    {"address": "https.example", "type": "HTTPS"}
+                  ]
+                }
+                """, ProxyConfig.class);
+        config.validatePostLoad();
+        require(config.usesRemoteDns() && config.realms.usesRemoteDns(),
+                "Default and custom Realms SOCKS5 profiles must delegate hostname resolution");
+        require(config.forServer("socks.example", 25565).usesRemoteDns(), "New SOCKS5 address profiles default to proxy DNS");
+        require(!config.forServer("local.example", 25565).usesRemoteDns(), "Keep an explicitly disabled SOCKS5 setting");
+        require(!config.forServer("https.example", 25565).usesRemoteDns(), "HTTPS must keep local DNS unless enabled");
+
+        var copy = new ProxySettings();
+        copy.copyFrom(config.forServer("socks.example", 25565));
+        copy.type = ProxyConfig.ProxyType.HTTP;
+        require(!copy.usesRemoteDns(), "An automatic setting follows changes to the proxy type");
+        copy.type = ProxyConfig.ProxyType.SOCKS5;
+        require(copy.usesRemoteDns(), "Switching back to SOCKS5 restores its DNS default");
     }
 
     private static void checkProxyEndpoint() {

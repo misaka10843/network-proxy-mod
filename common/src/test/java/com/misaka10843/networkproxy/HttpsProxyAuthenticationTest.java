@@ -233,7 +233,6 @@ public final class HttpsProxyAuthenticationTest {
             config.port = proxy.getLocalPort();
             config.username = USERNAME;
             config.password = PASSWORD;
-            config.resolveHostnamesThroughProxy = true;
             var exchange = executor.submit(() -> {
                 try (var socket = proxy.accept()) {
                     socksConnect(socket, "first.invalid", 80, 0);
