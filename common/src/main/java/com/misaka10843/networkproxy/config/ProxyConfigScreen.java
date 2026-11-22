@@ -5,6 +5,7 @@ import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
+import me.shedaniel.clothconfig2.api.Requirement;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
@@ -103,14 +104,18 @@ public final class ProxyConfigScreen extends Screen {
         var enabled = fields.startBooleanToggle(label("default_enabled"), edited.enabled)
                 .setDefaultValue(false).setSaveConsumer(value -> edited.enabled = value).build();
         general.addEntry(enabled);
+        general.addEntry(fields.startBooleanToggle(label("use_default_for_unlisted"),
+                        !Boolean.TRUE.equals(edited.configuredAddressesOnly))
+                .setDefaultValue(true)
+                .setDisplayRequirement(Requirement.isTrue(enabled))
+                .setTooltip(label("use_default_for_unlisted.tooltip"), label("use_default_for_unlisted.tooltip.enforcement"))
+                .setSaveConsumer(value -> edited.configuredAddressesOnly = !value).build());
         general.addEntry(fields.startBooleanToggle(label("enforce_proxy_all"), edited.enforceProxy)
                 .setDefaultValue(false).setTooltip(label("enforce_proxy_all.tooltip"))
                 .setSaveConsumer(value -> edited.enforceProxy = value).build());
         general.addEntry(fields.startBooleanToggle(label("use_for_downloads"), edited.useForDownloads)
                 .setDefaultValue(false).setSaveConsumer(value -> edited.useForDownloads = value).build());
-        general.addEntry(fields.startBooleanToggle(label("use_filter"), Boolean.TRUE.equals(edited.configuredAddressesOnly))
-                .setDefaultValue(false).setTooltip(label("use_filter.tooltip"))
-                .setSaveConsumer(value -> edited.configuredAddressesOnly = value).build());
+
         addProxyFields(general, fields, edited, enabled::getValue);
         return builder.build();
     }
