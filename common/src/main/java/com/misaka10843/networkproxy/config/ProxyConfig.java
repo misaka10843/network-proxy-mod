@@ -90,6 +90,7 @@ public class ProxyConfig extends ProxySettings implements ConfigData {
 
     public enum ProxyType {
         HTTP,
+        HTTPS,
         SOCKS5
     }
 }

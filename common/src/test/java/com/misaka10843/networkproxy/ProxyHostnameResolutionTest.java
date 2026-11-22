@@ -76,7 +76,7 @@ public final class ProxyHostnameResolutionTest {
                     type + " must send the original hostname and port when remote DNS is on");
 
             var local = ProxyConnection.proxyDestination(resolved, settings, false);
-            require(local.getHostString().equals(type == ProxyConfig.ProxyType.HTTP ? "127.0.0.1" : hostname)
+            require(local.getHostString().equals(type == ProxyConfig.ProxyType.SOCKS5 ? hostname : "127.0.0.1")
                             && local.getPort() == port,
                     type + " must preserve the chosen IP and port when remote DNS is off");
             if (type == ProxyConfig.ProxyType.SOCKS5) {

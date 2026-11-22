@@ -1,5 +1,5 @@
 {
-  "modmenu.descriptionTranslation.networkproxy": "支持http/sock5代理并支持指定服务器代理的mod",
+  "modmenu.descriptionTranslation.networkproxy": "支持 HTTP、HTTPS 和 SOCKS5 代理，并可为各服务器单独配置。",
   "config.networkproxy.title": "网络代理设置",
   "config.networkproxy.category.general": "默认代理设置",
   "config.networkproxy.default_enabled": "启用默认代理",
@@ -11,7 +11,7 @@
   "config.networkproxy.use_filter.tooltip": "未配置的多人游戏服务器地址将直接连接。",
   "config.networkproxy.type": "代理类型",
   "config.networkproxy.resolve_hostnames_through_proxy": "通过代理解析主机名",
-  "config.networkproxy.resolve_hostnames_through_proxy.tooltip": "将多人游戏服务器主机名发送给 HTTP 或 SOCKS5 代理。启用后，Minecraft 会跳过本地 DNS 和 SRV 查询。",
+  "config.networkproxy.resolve_hostnames_through_proxy.tooltip": "将多人游戏服务器主机名发送给代理。启用后，Minecraft 会跳过本地 DNS 和 SRV 查询。",
   "config.networkproxy.host": "代理服务器地址",
   "config.networkproxy.host.tooltip": "IP 地址或域名",
   "config.networkproxy.invalid_proxy_host": "请输入域名或 IP 地址。请单独设置端口。",
