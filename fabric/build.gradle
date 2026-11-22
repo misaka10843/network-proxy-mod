@@ -17,8 +17,8 @@ dependencies {
     implementation "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_version}"
     compileOnly "com.terraformersmc:modmenu:${rootProject.modmenu_version}"
     localRuntime "com.terraformersmc:modmenu:${rootProject.modmenu_version}"
-    implementation "io.netty:netty-handler-proxy:${rootProject.netty_version}"
+    implementation("io.netty:netty-handler-proxy:${rootProject.netty_version}") { transitive = false }
     include "io.netty:netty-handler-proxy:${rootProject.netty_version}"
-    implementation "io.netty:netty-codec-socks:${rootProject.netty_version}"
+    implementation("io.netty:netty-codec-socks:${rootProject.netty_version}") { transitive = false }
     include "io.netty:netty-codec-socks:${rootProject.netty_version}"
 }
