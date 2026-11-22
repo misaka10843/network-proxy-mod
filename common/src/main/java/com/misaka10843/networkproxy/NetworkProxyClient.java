@@ -43,7 +43,7 @@ public class NetworkProxyClient {
             return ScopedValue.where(DOWNLOAD_AUTHENTICATION, Optional.empty()).call(() -> download.apply(defaultProxy));
         }
 
-        InetSocketAddress endpoint = new InetSocketAddress(config.host, config.port);
+        InetSocketAddress endpoint = config.proxyAddress();
         Proxy.Type type = config.type == ProxyConfig.ProxyType.HTTP ? Proxy.Type.HTTP : Proxy.Type.SOCKS;
         Proxy proxy = new Proxy(type, endpoint);
         String username = config.username;

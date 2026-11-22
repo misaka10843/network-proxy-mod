@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
 public final class ProxyConfigScreen extends Screen {
     private final Screen parent;
@@ -84,23 +85,23 @@ public final class ProxyConfigScreen extends Screen {
                 .setTitle(label("category.general")).setSavingRunnable(ProxyConfigScreen::saveConfig);
         ConfigCategory general = builder.getOrCreateCategory(label("category.general"));
         ConfigEntryBuilder fields = builder.entryBuilder();
-        general.addEntry(fields.startBooleanToggle(label("default_enabled"), config.enabled)
-                .setDefaultValue(false).setSaveConsumer(value -> config.enabled = value).build());
+        var enabled = fields.startBooleanToggle(label("default_enabled"), config.enabled)
+                .setDefaultValue(false).setSaveConsumer(value -> config.enabled = value).build();
+        general.addEntry(enabled);
         general.addEntry(fields.startBooleanToggle(label("use_for_downloads"), config.useForDownloads)
                 .setDefaultValue(false).setSaveConsumer(value -> config.useForDownloads = value).build());
         general.addEntry(fields.startBooleanToggle(label("use_filter"), Boolean.TRUE.equals(config.configuredAddressesOnly))
                 .setDefaultValue(false).setTooltip(label("use_filter.tooltip"))
                 .setSaveConsumer(value -> config.configuredAddressesOnly = value).build());
-        addProxyFields(general, fields, config);
+        addProxyFields(general, fields, config, enabled::getValue);
         return builder.build();
     }
 
     private Screen addressSettings(int index) {
         ServerProxySettings entry = index < 0 ? new ServerProxySettings() : config.serverAddresses.get(index).copy();
         if (index < 0) {
-            entry.copyFrom(config);
-            entry.username = "";
-            entry.password = "";
+            entry.type = config.type;
+            entry.resolveHostnamesThroughProxy = config.usesRemoteDns();
         }
         ConfigBuilder builder = ConfigBuilder.create().setParentScreen(this)
                 .setTitle(label(index < 0 ? "add_address" : "edit_address"))
@@ -127,9 +128,10 @@ public final class ProxyConfigScreen extends Screen {
                     }
                     entry.address = address;
                 }).build());
-        category.addEntry(fields.startBooleanToggle(label("address_enabled"), entry.enabled)
-                .setDefaultValue(true).setSaveConsumer(value -> entry.enabled = value).build());
-        addProxyFields(category, fields, entry);
+        var enabled = fields.startBooleanToggle(label("address_enabled"), entry.enabled)
+                .setDefaultValue(true).setSaveConsumer(value -> entry.enabled = value).build();
+        category.addEntry(enabled);
+        addProxyFields(category, fields, entry, enabled::getValue);
         return builder.build();
     }
 
@@ -160,7 +162,8 @@ public final class ProxyConfigScreen extends Screen {
         }, label("remove_address"), Component.translatable("config.networkproxy.remove_address.confirm", address)));
     }
 
-    private static void addProxyFields(ConfigCategory category, ConfigEntryBuilder fields, ProxySettings settings) {
+    private static void addProxyFields(ConfigCategory category, ConfigEntryBuilder fields,
+                                       ProxySettings settings, BooleanSupplier enabled) {
         category.addEntry(fields.startEnumSelector(label("type"), ProxyConfig.ProxyType.class, settings.type)
                 .setDefaultValue(ProxyConfig.ProxyType.SOCKS5).setEnumNameProvider(type -> Component.literal(type.name()))
                 .setSaveConsumer(value -> settings.type = value).build());
@@ -168,16 +171,40 @@ public final class ProxyConfigScreen extends Screen {
                 .setDefaultValue(false).setTooltip(label("resolve_hostnames_through_proxy.tooltip"))
                 .setSaveConsumer(value -> settings.resolveHostnamesThroughProxy = value).build());
         category.addEntry(fields.startStrField(label("host"), settings.host)
-                .setDefaultValue("127.0.0.1").setTooltip(label("host.tooltip"))
-                .setErrorSupplier(value -> ServerProxySettings.normalizeHost(value.strip()).isEmpty()
-                        ? Optional.of(label("invalid_proxy_host")) : Optional.empty())
+                .setDefaultValue("").setTooltip(label("host.tooltip"))
+                .setErrorSupplier(value -> {
+                    if (value.isBlank()) {
+                        return enabled.getAsBoolean() ? Optional.of(label("required_proxy_host")) : Optional.empty();
+                    }
+                    return ServerProxySettings.normalizeHost(value.strip()).isEmpty()
+                            ? Optional.of(label("invalid_proxy_host")) : Optional.empty();
+                })
                 .setSaveConsumer(value -> settings.host = value.strip()).build());
-        category.addEntry(fields.startIntField(label("port"), settings.port)
-                .setDefaultValue(7890).setMin(1).setMax(65535).setSaveConsumer(value -> settings.port = value).build());
+        category.addEntry(fields.startStrField(label("port"), settings.port == 0 ? "" : Integer.toString(settings.port))
+                .setDefaultValue("")
+                .setErrorSupplier(value -> {
+                    if (value.isBlank()) {
+                        return enabled.getAsBoolean() ? Optional.of(label("required_proxy_port")) : Optional.empty();
+                    }
+                    return parsePort(value) < 1 ? Optional.of(label("invalid_proxy_port")) : Optional.empty();
+                })
+                .setSaveConsumer(value -> settings.port = parsePort(value)).build());
         category.addEntry(fields.startStrField(label("username"), settings.username)
                 .setDefaultValue("").setSaveConsumer(value -> settings.username = value).build());
         category.addEntry(fields.startStrField(label("password"), settings.password)
                 .setDefaultValue("").setSaveConsumer(value -> settings.password = value).build());
+    }
+
+    private static int parsePort(String value) {
+        if (value.isBlank()) {
+            return 0;
+        }
+        try {
+            int port = Integer.parseInt(value.strip());
+            return port >= 1 && port <= 65535 ? port : -1;
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 
     private static Component label(String key) {

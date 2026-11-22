@@ -1,16 +1,25 @@
 package com.misaka10843.networkproxy.config;
 
+import java.net.InetSocketAddress;
+
 public class ProxySettings {
     public ProxyConfig.ProxyType type = ProxyConfig.ProxyType.SOCKS5;
     public Boolean resolveHostnamesThroughProxy;
     private Boolean socks5RemoteDns;
-    public String host = "127.0.0.1";
-    public int port = 7890;
+    public String host = "";
+    public int port;
     public String username = "";
     public String password = "";
 
     public boolean usesRemoteDns() {
         return Boolean.TRUE.equals(resolveHostnamesThroughProxy);
+    }
+
+    public InetSocketAddress proxyAddress() {
+        if (host == null || ServerProxySettings.normalizeHost(host.strip()).isEmpty() || port < 1 || port > 65535) {
+            throw new IllegalStateException("Enter a valid proxy host and port in Network Proxy Settings");
+        }
+        return new InetSocketAddress(host.strip(), port);
     }
 
     void fillMissingValues() {

@@ -78,8 +78,7 @@ public class MixinConnection {
                         NetworkProxyClient.LOGGER.info("Routing through proxy to: {}", host);
                         boolean sendHostname = settings.usesRemoteDns() || !ProxyConnection.hasSelectedSettings(ctx.channel());
                         destination = ProxyConnection.proxyDestination(targetAddr, settings, sendHostname);
-                        InetSocketAddress proxyAddr = new InetSocketAddress(settings.host, settings.port);
-                        ctx.pipeline().addFirst("proxy", ProxyConnection.createHandler(proxyAddr, settings));
+                        ctx.pipeline().addFirst("proxy", ProxyConnection.createHandler(settings.proxyAddress(), settings));
                     }
                 }
 

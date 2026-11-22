@@ -84,8 +84,7 @@ public final class ProxyConnection {
     public static ChannelFuture connectThroughProxy(Bootstrap bootstrap, InetSocketAddress target,
                                                     ProxySettings config) {
         NetworkProxyClient.LOGGER.info("Routing through proxy to: {}", target.getHostString());
-        InetSocketAddress proxyAddress = new InetSocketAddress(config.host, config.port);
-        ProxyHandler proxy = createHandler(proxyAddress, config);
+        ProxyHandler proxy = createHandler(config.proxyAddress(), config);
         ChannelHandler originalHandler = bootstrap.config().handler();
         bootstrap.handler(new ChannelInitializer<Channel>() {
             @Override

@@ -14,6 +14,7 @@ public final class ProxyHostnameResolutionTest {
 
     public static void main(String[] args) throws Exception {
         checkMigration();
+        checkProxyEndpoint();
         checkDestinations();
         System.out.println("Proxy hostname resolution regression test passed");
     }
@@ -23,6 +24,8 @@ public final class ProxyHostnameResolutionTest {
         var config = gson.fromJson("""
                 {
                   "type": "SOCKS5",
+                  "host": "proxy.example",
+                  "port": 7890,
                   "socks5RemoteDns": true,
                   "serverAddresses": [
                     {"address": "socks.example", "type": "SOCKS5", "socks5RemoteDns": true},
@@ -33,6 +36,7 @@ public final class ProxyHostnameResolutionTest {
                 }
                 """, ProxyConfig.class);
         config.validatePostLoad();
+        require(config.host.equals("proxy.example") && config.port == 7890, "Keep saved proxy endpoints");
         require(config.usesRemoteDns(), "The previous SOCKS5 default should retain remote DNS");
         require(config.forServer("socks.example", 25565).usesRemoteDns(), "Preserve legacy SOCKS5 profiles");
         require(!config.forServer("http.example", 25565).usesRemoteDns(), "An inactive legacy HTTP flag must stay off");
@@ -42,6 +46,20 @@ public final class ProxyHostnameResolutionTest {
         String saved = gson.toJson(config);
         require(saved.contains("\"resolveHostnamesThroughProxy\"") && !saved.contains("\"socks5RemoteDns\""),
                 "Save only the unified hostname resolution setting");
+    }
+
+    private static void checkProxyEndpoint() {
+        var settings = new ProxySettings();
+        require(settings.host.isEmpty() && settings.port == 0, "New settings have no proxy endpoint");
+        try {
+            settings.proxyAddress();
+            throw new AssertionError("An empty proxy endpoint must fail before connecting");
+        } catch (IllegalStateException expected) {
+            require(expected.getMessage().contains("proxy host and port"), "Explain the missing proxy endpoint");
+        }
+        settings.host = "127.0.0.1";
+        settings.port = 4447;
+        require(settings.proxyAddress().getPort() == 4447, "Use the configured endpoint");
     }
 
     private static void checkDestinations() throws Exception {
