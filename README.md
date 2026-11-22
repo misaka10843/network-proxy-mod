@@ -1,21 +1,51 @@
 # Network Proxy
 
-A client-side Minecraft mod for routing server connections through HTTP or SOCKS5 proxies, with optional domain filtering and resource-pack download proxying.
+A Minecraft 26.3 client mod for HTTP, HTTPS, and SOCKS5 proxies.
 
-In Network Proxy Settings, select **Add Server Address** to give a multiplayer server its own proxy type, host, port, credentials, and **SOCKS5 Remote DNS** setting. **Enable Proxy for This Address** controls the entry independently of **Enable Default Proxy**. Use `example.org` for any port at that hostname or `example.org:25566` for a specific port. A port-specific entry takes precedence. Disable an entry to connect to that address directly. Unmatched addresses use the default proxy if it is enabled and **Only proxy configured addresses** is off. Imported domain filter entries match the domain and its subdomains.
+## Install
 
-When **SOCKS5 Remote DNS** is enabled for an address, the proxy resolves its hostname for joins and server-list pings. Minecraft skips its local DNS and SRV lookups. For an SRV-only server, enter the target hostname and port advertised by its SRV record. With remote DNS off, Minecraft resolves the address and sends the resulting IP to the SOCKS5 proxy.
+Network Proxy requires Java 25 and Cloth Config.
 
-The repository targets Minecraft 26.3 and builds separate Fabric and NeoForge jars from shared code. Java 25 is required.
+- **Fabric** requires Fabric Loader. Install **Mod Menu** to configure Network Proxy in-game.
+- **NeoForge** users can open Network Proxy Settings from the mod list.
 
-- Fabric: install Fabric Loader, Cloth Config and optionally Mod Menu to access the configuration screen.
-- NeoForge: install NeoForge and Cloth Config; open the configuration screen from the mod list.
+## Configure
 
-Build both variants with `./gradlew build`. The jars are generated in `fabric/build/libs` and `neoforge/build/libs`. Configure the Gradle JVM to use Java 25.
+### Server addresses
 
-The shared source and resources are in `common/`; loader-specific entry points and metadata are in `fabric/` and `neoforge/`.
+Choose **Add Server Address** in **Network Proxy Settings** to set the proxy type, host, port, and optional credentials. Use `domain.tld` to match any port on that hostname or `domain.tld:<port>` to match a specific port.
 
-In IntelliJ IDEA, reload the Gradle project to generate the **Fabric Client**
-run configuration. It runs the `:fabric:runClient` task; NeoForge has its own
-client configuration. If the Fabric configuration is missing after syncing,
-run `./gradlew :fabric:ideaSyncTask` and reload the project.
+**Use Proxy** requires the configured proxy for joins and pings to that address. Resource packs from that server use the same proxy. Server-directed transfers require a proxy for the new address. Turning it off makes that address direct unless the killswitch is on.
+
+### Default proxy
+
+- Unlisted servers use the default proxy for joins and pings when **Enable Default Proxy** and **Proxy Unlisted Servers** are both on.
+- **Enable Default Proxy** also proxies web downloads. Resource packs use the game connection’s proxy when one is required.
+- HTTP and HTTPS proxies resolve pack hostnames. For SOCKS5, turn on **DNS via Proxy** to skip local hostname lookups.
+- **Proxy Enforcement / Killswitch** blocks joins and pings without an enabled proxy. It’s off by default.
+
+### DNS and HTTPS
+
+**DNS via Proxy** defaults to on for SOCKS5 and off for HTTP and HTTPS. When on, it sends the server hostname to the proxy for joins and pings, skipping local DNS and SRV lookups. There’s no local DNS fallback. For SRV-only servers, enter the hostname and port from the SRV record. The proxy must be able to resolve and reach the destination, including `.onion` or `.i2p` addresses.
+
+SOCKS5 resolves pack hostnames through the proxy when **DNS via Proxy** is on, including after redirects. HTTPS downloads use TLS through that tunnel. With **DNS via Proxy** off, Minecraft’s downloader tries to resolve the pack hostname locally before opening a SOCKS5 tunnel. Proxy failures, HTTP errors, and invalid certificates also stop the download without a direct retry.
+
+### Realms
+
+Use the permanent **Realms** entry to set the game connection’s route.
+
+- **Follow Default Settings** keeps the existing Realms routing.
+- **Direct** connects without a proxy.
+- **Use Custom Proxy** requires a dedicated proxy for the game connection and any resource packs the Realm requests over it. It also supports **DNS via Proxy**.
+
+## Build
+
+Run `./gradlew build` with Java 25. The JARs are in `fabric/build/libs` and `neoforge/build/libs`. Shared source and resources are in `common/`.
+
+In IntelliJ IDEA, reload the Gradle project to generate the **Fabric Client** run configuration, which runs `:fabric:runClient`. NeoForge has a separate client configuration. If **Fabric Client** is missing, run `./gradlew :fabric:ideaSyncTask` and reload the project.
+
+## Credits
+
+- Original mod by [misaka10843](https://github.com/misaka10843).
+- Proxy enforcement and DNS via Proxy by [FF69B4](https://github.com/FF69B4).
+- Resource-pack proxy support by [kidofcubes](https://github.com/kidofcubes).

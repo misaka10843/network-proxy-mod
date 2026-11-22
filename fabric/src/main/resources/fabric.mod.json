@@ -3,9 +3,13 @@
   "id": "networkproxy",
   "version": "${version}",
   "name": "networkproxy",
-  "description": "A Minecraft mod with support for HTTP/SOCKS5 proxies and per-server proxy configuration.",
+  "description": "A Minecraft mod with support for HTTP, HTTPS and SOCKS5 proxies and per-server proxy configuration.",
   "authors": [
     "misaka10843"
+  ],
+  "contributors": [
+    "FF69B4",
+    "kidofcubes"
   ],
   "contact": {
     "homepage": "https://misaka.sakurakoi.top/",

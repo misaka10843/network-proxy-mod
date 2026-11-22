@@ -21,4 +21,8 @@ dependencies {
     include "io.netty:netty-handler-proxy:${rootProject.netty_version}"
     implementation("io.netty:netty-codec-socks:${rootProject.netty_version}") { transitive = false }
     include "io.netty:netty-codec-socks:${rootProject.netty_version}"
+    rootProject.httpsProxyLibraries.each { library ->
+        implementation(library) { transitive = false }
+        include library
+    }
 }

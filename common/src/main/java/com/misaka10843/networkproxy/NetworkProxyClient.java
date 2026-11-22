@@ -1,6 +1,7 @@
 package com.misaka10843.networkproxy;
 
 import com.misaka10843.networkproxy.config.ProxyConfig;
+import com.misaka10843.networkproxy.config.ProxySettings;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.GsonConfigSerializer;
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import java.util.function.Function;
 public class NetworkProxyClient {
     public static final String MOD_ID = "networkproxy";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    private static final int ENFORCED_DOWNLOAD_TIMEOUT_MILLIS = 30_000;
     private static final ScopedValue<Optional<DownloadAuthentication>> DOWNLOAD_AUTHENTICATION =
             ScopedValue.newInstance();
 
@@ -31,42 +33,77 @@ public class NetworkProxyClient {
         AutoConfig.register(ProxyConfig.class, GsonConfigSerializer::new);
 
         LOGGER.info("NetworkProxy Client Initialized!");
+        installDownloadAuthenticator();
+    }
+
+    static void installDownloadAuthenticator() {
         Authenticator.setDefault(new AuthenticatorWrapper(Authenticator.getDefault(), null));
     }
 
     public static <T> T withDownloadProxy(Proxy defaultProxy, Function<Proxy, T> download) {
-        ProxyConfig config = getConfig();
-        if (!config.enabled || !config.useForDownloads) {
+        ProxyRoute route = ProxyRoute.current();
+        if (route != null && route.enforced()) {
+            return withDownloadProxy(route.settings(), route.enforcedEndpoint(), download);
+        }
+        return withDownloadProxy(getConfig(), defaultProxy, download);
+    }
+
+    static <T> T withDownloadProxy(ProxyConfig config, Proxy defaultProxy, Function<Proxy, T> download) {
+        if (!config.enabled) {
             return ScopedValue.where(DOWNLOAD_AUTHENTICATION, Optional.empty()).call(() -> download.apply(defaultProxy));
         }
 
-        InetSocketAddress endpoint = new InetSocketAddress(config.host, config.port);
-        Proxy.Type type = config.type == ProxyConfig.ProxyType.HTTP ? Proxy.Type.HTTP : Proxy.Type.SOCKS;
+        return withDownloadProxy(config, config.proxyAddress(), download);
+    }
+
+    private static <T> T withDownloadProxy(ProxySettings settings, InetSocketAddress endpoint,
+                                           Function<Proxy, T> download) {
+        Proxy.Type type = settings.type == ProxyConfig.ProxyType.SOCKS5 ? Proxy.Type.SOCKS : Proxy.Type.HTTP;
         Proxy proxy = new Proxy(type, endpoint);
-        String username = config.username;
+        String username = settings.username;
         PasswordAuthentication credentials = username == null || username.isEmpty() ? null
-                : new PasswordAuthentication(username, config.password.toCharArray());
-        var authentication = new DownloadAuthentication(endpoint, type, credentials);
+                : new PasswordAuthentication(username, settings.password.toCharArray());
+        var authentication = new DownloadAuthentication(endpoint, settings.type, credentials, settings.usesRemoteDns());
         return ScopedValue.where(DOWNLOAD_AUTHENTICATION, Optional.of(authentication)).call(() -> download.apply(proxy));
     }
 
     public static void configureDownloadAuthentication(URLConnection connection) {
         var authentication = DOWNLOAD_AUTHENTICATION.orElse(Optional.empty());
-        if (connection instanceof HttpURLConnection http && authentication.isPresent()
-                && authentication.get().type() == Proxy.Type.HTTP) {
-            // A connection-specific authenticator also isolates the JDK's HTTP authentication cache.
-            http.setAuthenticator(new AuthenticatorWrapper(Authenticator.getDefault(), authentication.get()));
+        if (connection instanceof HttpURLConnection http && authentication.isPresent()) {
+            ProxyRoute route = ProxyRoute.current();
+            if (route != null && route.enforced()) {
+                http.setConnectTimeout(ENFORCED_DOWNLOAD_TIMEOUT_MILLIS);
+                http.setReadTimeout(ENFORCED_DOWNLOAD_TIMEOUT_MILLIS);
+            }
+            if (authentication.get().type() == ProxyConfig.ProxyType.HTTP) {
+                // A connection-specific authenticator also isolates the JDK's HTTP authentication cache.
+                http.setAuthenticator(new AuthenticatorWrapper(Authenticator.getDefault(), authentication.get()));
+            }
         }
     }
 
-    private record DownloadAuthentication(InetSocketAddress endpoint, Proxy.Type type,
-                                          PasswordAuthentication credentials) {
+    public static URLConnection openProxiedDownload(URL url) {
+        var authentication = DOWNLOAD_AUTHENTICATION.orElse(Optional.empty()).orElse(null);
+        if (authentication == null) {
+            return null;
+        }
+        return switch (authentication.type()) {
+            case HTTPS -> new ProxiedDownloadConnection(url, authentication.endpoint(),
+                    authentication.type(), authentication.credentials());
+            case SOCKS5 -> authentication.remoteDns()
+                    ? new ProxiedDownloadConnection(url, authentication.endpoint(), authentication.type(), null) : null;
+            case HTTP -> null;
+        };
+    }
+
+    private record DownloadAuthentication(InetSocketAddress endpoint, ProxyConfig.ProxyType type,
+                                          PasswordAuthentication credentials, boolean remoteDns) {
         PasswordAuthentication forRequest(String host, InetAddress address, int port, String protocol,
                                           URL url, Authenticator.RequestorType requestor) {
             if (credentials == null || port != endpoint.getPort()) {
                 return null;
             }
-            if (type == Proxy.Type.SOCKS) {
+            if (type == ProxyConfig.ProxyType.SOCKS5) {
                 // The JDK SOCKS5 handshake uses the authenticator overload without a URL or requestor type.
                 if (url != null || !"SOCKS5".equalsIgnoreCase(protocol)) {
                     return null;
@@ -95,7 +132,7 @@ public class NetworkProxyClient {
                                                                                URL url, RequestorType requestor) {
             var authentication = DOWNLOAD_AUTHENTICATION.orElse(Optional.empty()).orElse(null);
             if (authentication != null && (authentication == httpAuthentication
-                    || (httpAuthentication == null && authentication.type() == Proxy.Type.SOCKS))) {
+                    || (httpAuthentication == null && authentication.type() == ProxyConfig.ProxyType.SOCKS5))) {
                 var credentials = authentication.forRequest(host, address, port, protocol, url, requestor);
                 if (credentials != null) {
                     return credentials;
