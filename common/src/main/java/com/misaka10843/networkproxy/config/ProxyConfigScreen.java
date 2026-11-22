@@ -47,8 +47,8 @@ public final class ProxyConfigScreen extends Screen {
 
         addRenderableOnly(new StringWidget(left, 10, contentWidth, 20, title, font));
         button(label("category.general"), left, 34, half, () -> minecraft.gui.setScreen(generalSettings()));
-        button(label("add_address"), left + half + 6, 34, half, () -> minecraft.gui.setScreen(addressSettings(-1)));
-        button(label("realms"), left, 58, contentWidth, () -> minecraft.gui.setScreen(realmsSettings()));
+        button(label("realms"), left + half + 6, 34, half, () -> minecraft.gui.setScreen(realmsSettings()));
+        button(label("add_address"), left, 58, contentWidth, () -> minecraft.gui.setScreen(addressSettings(-1)));
 
         for (int index = page * rows; index < Math.min(count, (page + 1) * rows); index++) {
             int entryIndex = index;
