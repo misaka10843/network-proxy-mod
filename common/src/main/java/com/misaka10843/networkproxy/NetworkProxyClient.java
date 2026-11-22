@@ -50,7 +50,7 @@ public class NetworkProxyClient {
     }
 
     static <T> T withDownloadProxy(ProxyConfig config, Proxy defaultProxy, Function<Proxy, T> download) {
-        if (!config.enabled || !config.useForDownloads) {
+        if (!config.enabled) {
             return ScopedValue.where(DOWNLOAD_AUTHENTICATION, Optional.empty()).call(() -> download.apply(defaultProxy));
         }
 

@@ -2,6 +2,7 @@ package com.misaka10843.networkproxy;
 
 import com.misaka10843.networkproxy.config.ProxyConfig;
 import com.misaka10843.networkproxy.config.ProxySettings;
+import com.misaka10843.networkproxy.config.RealmsProxySettings;
 import com.misaka10843.networkproxy.config.ServerProxySettings;
 
 import java.net.InetSocketAddress;
@@ -19,13 +20,21 @@ public final class ProxyRoute {
         if (settings != null) {
             settings.copyFrom(selected);
         }
-        enforced = requireProxy || (selected instanceof ServerProxySettings profile && profile.enforceProxyForProfile);
+        enforced = requireProxy || selected instanceof ServerProxySettings;
     }
 
     public static ProxyRoute select(ProxyConfig config, String host, int port, boolean inheritedEnforcement) {
         synchronized (config) {
             return new ProxyRoute(config.forServer(host, port), inheritedEnforcement || config.enforceProxy);
         }
+    }
+
+    public static ProxyRoute selectRealms(RealmsProxySettings settings) {
+        return switch (settings.mode) {
+            case DEFAULT -> null;
+            case DIRECT -> new ProxyRoute(null, false);
+            case CUSTOM -> new ProxyRoute(settings, true);
+        };
     }
 
     public static ProxyRoute current() {

@@ -198,7 +198,6 @@ public final class HttpsProxyAuthenticationTest {
             var config = new ProxyConfig();
             config.type = ProxyConfig.ProxyType.HTTPS;
             config.enabled = true;
-            config.useForDownloads = true;
             config.host = "localhost";
             config.port = server.getLocalPort();
             config.username = USERNAME;

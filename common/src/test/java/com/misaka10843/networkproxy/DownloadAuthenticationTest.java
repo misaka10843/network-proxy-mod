@@ -1,15 +1,18 @@
 package com.misaka10843.networkproxy;
 
 import com.misaka10843.networkproxy.config.ProxyConfig;
+import com.misaka10843.networkproxy.config.ServerProxySettings;
 
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.Proxy;
 import java.net.URI;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.List;
 
 public final class DownloadAuthenticationTest {
     private static final String PROXY_HOST = "127.0.0.1";
@@ -23,7 +26,6 @@ public final class DownloadAuthenticationTest {
     public static void main(String[] args) throws Exception {
         var config = new ProxyConfig();
         config.enabled = true;
-        config.useForDownloads = true;
         config.type = ProxyConfig.ProxyType.HTTP;
         config.host = PROXY_HOST;
         config.port = PROXY_PORT;
@@ -31,7 +33,14 @@ public final class DownloadAuthenticationTest {
         config.password = TEST_PASSWORD;
 
         var connection = new DummyConnection(URI.create("http://origin.invalid/resource-pack.zip").toURL());
+        var originalRoute = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(PROXY_HOST, PROXY_PORT + 1));
+        NetworkProxyClient.withDownloadProxy(new ProxyConfig(), originalRoute, proxy -> {
+            require(proxy == originalRoute, "Disabling the default proxy preserves Minecraft's download route");
+            return null;
+        });
         NetworkProxyClient.withDownloadProxy(config, Proxy.NO_PROXY, proxy -> {
+            require(proxy.type() == Proxy.Type.HTTP && proxy.address().equals(config.proxyAddress()),
+                    "Enabling the default proxy also routes web downloads through that proxy");
             NetworkProxyClient.configureDownloadAuthentication(connection);
             var proxyCredentials = connection.authenticate(PROXY_HOST, PROXY_PORT, Authenticator.RequestorType.PROXY);
             require(proxyCredentials != null && TEST_USERNAME.equals(proxyCredentials.getUserName())
@@ -54,15 +63,17 @@ public final class DownloadAuthenticationTest {
     }
 
     private static void checkEnforcedDownloads(ProxyConfig config) {
-        config.enforceProxy = true;
-        config.useForDownloads = false;
-        var route = ProxyRoute.select(config, "game.invalid", 25565, false);
         config.enabled = false;
-        config.enforceProxy = false;
+        var profile = new ServerProxySettings();
+        profile.copyFrom(config);
+        profile.address = "game.invalid";
+        config.serverAddresses = List.of(profile);
+        var route = ProxyRoute.select(config, "game.invalid", 25565, false);
+        profile.enabled = false;
 
         route.run(() -> NetworkProxyClient.withDownloadProxy(Proxy.NO_PROXY, proxy -> {
             require(proxy.type() == Proxy.Type.HTTP && proxy.address().equals(route.enforcedEndpoint()),
-                    "Server downloads must retain the enforced route despite changes to the default");
+                    "Server downloads must retain the per-address route even when the profile is later disabled");
             return null;
         }));
 
@@ -79,7 +90,7 @@ public final class DownloadAuthenticationTest {
         config.enforceProxy = true;
         config.type = ProxyConfig.ProxyType.SOCKS5;
         config.resolveHostnamesThroughProxy = true;
-        var socks = ProxyRoute.select(config, "game.invalid", 25565, false);
+        var socks = ProxyRoute.select(config, "socks.invalid", 25565, false);
         socks.run(() -> {
             try {
                 NetworkProxyClient.withDownloadProxy(Proxy.NO_PROXY, proxy -> {

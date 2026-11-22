@@ -3,6 +3,7 @@ package com.misaka10843.networkproxy;
 import com.google.gson.Gson;
 import com.misaka10843.networkproxy.config.ProxyConfig;
 import com.misaka10843.networkproxy.config.ProxySettings;
+import com.misaka10843.networkproxy.config.RealmsProxySettings;
 import com.misaka10843.networkproxy.config.ServerProxySettings;
 import io.netty.handler.codec.http.HttpUtil;
 
@@ -19,6 +20,7 @@ public final class ProxyHostnameResolutionTest {
         checkProxyEndpoint();
         checkDestinations();
         checkEnforcementSelection();
+        checkRealmsSelection();
         System.out.println("Proxy hostname resolution regression test passed");
     }
 
@@ -103,19 +105,17 @@ public final class ProxyHostnameResolutionTest {
 
         var protectedProfile = new ServerProxySettings();
         protectedProfile.address = "game.example:25566";
-        protectedProfile.enforceProxyForProfile = true;
         var otherPorts = new ServerProxySettings();
         otherPorts.address = "game.example";
         config.serverAddresses = List.of(otherPorts, protectedProfile);
 
-        require(protectedProfile.copy().enforceProxyForProfile, "Editing an address preserves its enforcement");
         var saved = new Gson().toJson(config);
         var loaded = new Gson().fromJson(saved, ProxyConfig.class);
         var protectedRoute = ProxyRoute.select(loaded, "game.example", 25566, false);
-        require(protectedRoute.enforced(), "A port-specific profile can enforce its own proxy");
+        require(protectedRoute.enforced(), "An enabled port-specific profile must require its proxy after reload");
         var otherRoute = ProxyRoute.select(config, "game.example", 25565, false);
-        require(otherRoute.settings() != null && !otherRoute.enforced(),
-                "Another profile can use a proxy without inheriting enforcement");
+        require(otherRoute.settings() != null && otherRoute.enforced(),
+                "An enabled hostname-only profile also requires its proxy");
         var unmatched = ProxyRoute.select(config, "other.example", 25565, false);
         require(unmatched.settings() == null && !unmatched.enforced(),
                 "The disabled default must leave unmatched addresses direct");
@@ -140,12 +140,37 @@ public final class ProxyHostnameResolutionTest {
         var globallyBlocked = ProxyRoute.select(config, "other.example", 25565, false);
         require(globallyBlocked.settings() == null && globallyBlocked.enforced(),
                 "Global enforcement must block addresses without a proxy route");
-        var globallyProtected = ProxyRoute.select(config, "game.example", 25565, false);
+        config.enabled = true;
+        var globallyProtected = ProxyRoute.select(config, "other.example", 25565, false);
         require(globallyProtected.settings() != null && globallyProtected.enforced(),
-                "Global enforcement also applies to enabled profiles without their own flag");
+                "Global enforcement also requires the selected default proxy");
         var globallyBlockedDirect = ProxyRoute.select(config, "game.example", 25566, false);
         require(globallyBlockedDirect.settings() == null && globallyBlockedDirect.enforced(),
                 "Global enforcement must block explicitly disabled profiles");
+    }
+
+    private static void checkRealmsSelection() {
+        var gson = new Gson();
+        var config = gson.fromJson("{\"enforceProxy\":true,\"realms\":null}", ProxyConfig.class);
+        config.validatePostLoad();
+        require(ProxyRoute.selectRealms(config.realms) == null,
+                "Older configurations keep the original Realms route independently of multiplayer enforcement");
+
+        config.realms.mode = RealmsProxySettings.Mode.DIRECT;
+        var direct = ProxyRoute.selectRealms(config.realms);
+        require(direct != null && direct.settings() == null && !direct.enforced(),
+                "Direct mode explicitly bypasses proxy selection for the Realms game connection");
+
+        config.realms.mode = RealmsProxySettings.Mode.CUSTOM;
+        config.realms.host = "127.0.0.1";
+        config.realms.port = 4447;
+        config.realms.resolveHostnamesThroughProxy = true;
+        var loaded = gson.fromJson(gson.toJson(config), ProxyConfig.class);
+        loaded.validatePostLoad();
+        var custom = ProxyRoute.selectRealms(loaded.realms);
+        loaded.realms.port = 5555;
+        require(custom.enforced() && custom.settings().usesRemoteDns() && custom.enforcedEndpoint().getPort() == 4447,
+                "A custom Realms route requires its saved proxy and snapshots the remote DNS policy");
     }
 
     private static void require(boolean condition, String message) {

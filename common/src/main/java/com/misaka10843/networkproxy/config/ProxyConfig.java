@@ -10,17 +10,21 @@ import java.util.Locale;
 @Config(name = "networkproxy")
 public class ProxyConfig extends ProxySettings implements ConfigData {
     public boolean enabled = false;
-    public boolean useForDownloads = false;
     public boolean enforceProxy = false;
     public boolean useFilter = false;
 
     public List<String> proxyDomains = new ArrayList<>();
     public volatile List<ServerProxySettings> serverAddresses;
+    public volatile RealmsProxySettings realms = new RealmsProxySettings();
     public Boolean configuredAddressesOnly;
 
     @Override
     public void validatePostLoad() {
         fillMissingValues();
+        if (realms == null) {
+            realms = new RealmsProxySettings();
+        }
+        realms.fillMissingValues();
         if (configuredAddressesOnly == null) {
             configuredAddressesOnly = useFilter;
         }
