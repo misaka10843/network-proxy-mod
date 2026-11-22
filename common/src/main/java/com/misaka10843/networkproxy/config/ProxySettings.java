@@ -4,6 +4,7 @@ import java.net.InetSocketAddress;
 
 public class ProxySettings {
     public ProxyConfig.ProxyType type = ProxyConfig.ProxyType.SOCKS5;
+    public boolean enforceProxyForProfile;
     public Boolean resolveHostnamesThroughProxy;
     private Boolean socks5RemoteDns;
     public String host = "";
@@ -43,6 +44,7 @@ public class ProxySettings {
 
     public void copyFrom(ProxySettings source) {
         type = source.type;
+        enforceProxyForProfile = source.enforceProxyForProfile;
         resolveHostnamesThroughProxy = source.usesRemoteDns();
         host = source.host;
         port = source.port;

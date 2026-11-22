@@ -13,12 +13,12 @@ public final class ProxyRoute {
     private final boolean enforced;
     private InetSocketAddress endpoint;
 
-    private ProxyRoute(ProxySettings selected, boolean enforced) {
-        this.enforced = enforced;
+    private ProxyRoute(ProxySettings selected, boolean inheritedEnforcement) {
         settings = selected == null ? null : new ProxySettings();
         if (settings != null) {
             settings.copyFrom(selected);
         }
+        enforced = inheritedEnforcement || (settings != null && settings.enforceProxyForProfile);
     }
 
     public static ProxyRoute select(ProxyConfig config, String host, int port, boolean inheritedEnforcement) {

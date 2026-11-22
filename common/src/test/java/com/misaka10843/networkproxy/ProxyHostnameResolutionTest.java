@@ -3,10 +3,12 @@ package com.misaka10843.networkproxy;
 import com.google.gson.Gson;
 import com.misaka10843.networkproxy.config.ProxyConfig;
 import com.misaka10843.networkproxy.config.ProxySettings;
+import com.misaka10843.networkproxy.config.ServerProxySettings;
 import io.netty.handler.codec.http.HttpUtil;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.List;
 
 public final class ProxyHostnameResolutionTest {
     private ProxyHostnameResolutionTest() {
@@ -16,6 +18,7 @@ public final class ProxyHostnameResolutionTest {
         checkMigration();
         checkProxyEndpoint();
         checkDestinations();
+        checkEnforcementSelection();
         System.out.println("Proxy hostname resolution regression test passed");
     }
 
@@ -90,6 +93,57 @@ public final class ProxyHostnameResolutionTest {
         var destination = ProxyConnection.proxyDestination(ipv6, settings, false);
         require(HttpUtil.formatHostnameForHttp(destination).equals("[" + ipv6.getAddress().getHostAddress() + "]"),
                 "HTTP CONNECT must bracket a locally resolved IPv6 address");
+    }
+
+    private static void checkEnforcementSelection() {
+        var existing = new Gson().fromJson("{\"enforceProxy\":true}", ProxyConfig.class);
+        require(existing.enforceProxy && !existing.enforceProxyForProfile,
+                "Keep the saved global enforcement setting separate from the default proxy profile");
+
+        var config = new ProxyConfig();
+        config.enforceProxyForProfile = true;
+
+        var protectedProfile = new ServerProxySettings();
+        protectedProfile.address = "game.example:25566";
+        protectedProfile.enforceProxyForProfile = true;
+        var otherPorts = new ServerProxySettings();
+        otherPorts.address = "game.example";
+        config.serverAddresses = List.of(otherPorts, protectedProfile);
+
+        var protectedRoute = ProxyRoute.select(config, "game.example", 25566, false);
+        require(protectedRoute.enforced(), "A port-specific profile can enforce its own proxy");
+        var otherRoute = ProxyRoute.select(config, "game.example", 25565, false);
+        require(otherRoute.settings() != null && !otherRoute.enforced(),
+                "Another profile can use a proxy without inheriting enforcement");
+        var unmatched = ProxyRoute.select(config, "other.example", 25565, false);
+        require(unmatched.settings() == null && !unmatched.enforced(),
+                "The disabled default must leave unmatched addresses direct");
+
+        config.enabled = true;
+        require(ProxyRoute.select(config, "other.example", 25565, false).enforced(),
+                "Enforcement on the default applies when the default proxy is selected");
+        protectedProfile.enabled = false;
+        var directProfile = ProxyRoute.select(config, "game.example", 25566, false);
+        require(directProfile.settings() == null && !directProfile.enforced(),
+                "An explicitly disabled profile is a direct route for independent connections");
+        var transfer = ProxyRoute.select(config, "game.example", 25566, protectedRoute.enforced());
+        require(transfer.settings() == null && transfer.enforced(),
+                "An enforced transfer must not downgrade to the disabled route");
+        var proxiedTransfer = ProxyRoute.select(config, "game.example", 25565, protectedRoute.enforced());
+        require(proxiedTransfer.settings() != null && proxiedTransfer.enforced(),
+                "A proxied transfer inherits enforcement from its original session");
+
+        config.enabled = false;
+        config.enforceProxy = true;
+        var globallyBlocked = ProxyRoute.select(config, "other.example", 25565, false);
+        require(globallyBlocked.settings() == null && globallyBlocked.enforced(),
+                "Global enforcement must block addresses without a proxy route");
+        var globallyProtected = ProxyRoute.select(config, "game.example", 25565, false);
+        require(globallyProtected.settings() != null && globallyProtected.enforced(),
+                "Global enforcement also applies to enabled profiles without their own flag");
+        var globallyBlockedDirect = ProxyRoute.select(config, "game.example", 25566, false);
+        require(globallyBlockedDirect.settings() == null && globallyBlockedDirect.enforced(),
+                "Global enforcement must block explicitly disabled profiles");
     }
 
     private static void require(boolean condition, String message) {
